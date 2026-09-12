@@ -3,10 +3,11 @@ const assert = require('node:assert/strict');
 const hubspot = require('../services/hubspotClient');
 const slack = require('../services/slackNotifier');
 const report = require('../services/reportService');
-const { ejecutarAccionCRM } = require('../services/crmAgent');
+const { ejecutarAccionCRM, aprobarAccionPendiente } = require('../services/crmAgent');
 
 let messages;
 test.beforeEach(() => {
+  process.env.AUTO_APPROVE_ACTIONS = 'true';
   messages = [];
   slack.postToSlack = async (message) => { messages.push(message); return { success: true }; };
   slack.postReport = async (message) => { messages.push(message); return { success: true }; };
@@ -40,4 +41,16 @@ test('notifica fallos y valida intenciones inválidas', async () => {
   assert.match(messages[0], /duplicado/);
   assert.equal((await ejecutarAccionCRM({ tipo: 'desconocido', datos: {} })).success, false);
   assert.equal((await ejecutarAccionCRM()).success, false);
+});
+
+test('deja la acción pendiente y permite ejecutarla tras aprobación humana', async () => {
+  process.env.AUTO_APPROVE_ACTIONS = 'false';
+  const intencion = { tipo: 'crear_contacto', datos: { firstname: 'Ana' } };
+  const pending = await ejecutarAccionCRM(intencion);
+  assert.equal(pending.estado, 'pendiente_aprobacion');
+  assert.match(messages[0], /Acción pendiente de aprobación/);
+
+  const approved = await aprobarAccionPendiente(intencion);
+  assert.equal(approved.success, true);
+  assert.match(messages[1], /Contacto creado/);
 });

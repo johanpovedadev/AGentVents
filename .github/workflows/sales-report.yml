@@ -1,0 +1,36 @@
+name: Informe de ventas CRM
+
+on:
+  # Permite ejecutar la demo desde la pestaña Actions cuando se necesite.
+  workflow_dispatch:
+  # 08:00 en Bogotá (UTC-5), de lunes a viernes.
+  schedule:
+    - cron: '0 13 * * 1-5'
+
+permissions:
+  contents: read
+
+jobs:
+  generar-informe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Generar y publicar informe
+        env:
+          HUBSPOT_ACCESS_TOKEN: ${{ secrets.HUBSPOT_ACCESS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AUTO_APPROVE_ACTIONS: 'false'
+        run: node scripts/runAgent.js "genera un informe de ventas"

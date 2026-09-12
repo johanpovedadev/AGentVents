@@ -2,14 +2,21 @@ const hubspotClient = require('./hubspotClient');
 const slackNotifier = require('./slackNotifier');
 const reportService = require('./reportService');
 
-/** Ejecuta una intención CRM y deja trazabilidad en Slack. */
-async function ejecutarAccionCRM(intencion) {
-  if (!intencion || !intencion.tipo || !intencion.datos) {
-    const error = 'La intención debe incluir tipo y datos.';
-    await slackNotifier.postToSlack(`:x: Error del agente CRM: ${error}`);
-    return { success: false, error };
-  }
+const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto'];
 
+/** Convierte los datos de la intención en texto legible para una aprobación humana. */
+function formatActionData(datos) {
+  return Object.entries(datos).map(([key, value]) => {
+    const label = key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ');
+    const formattedValue = value && typeof value === 'object'
+      ? Object.entries(value).map(([nestedKey, nestedValue]) => `${nestedKey}: ${nestedValue}`).join(', ')
+      : value;
+    return `• ${label}: ${formattedValue}`;
+  }).join('\n');
+}
+
+/** Ejecuta la intención ya aprobada, sin volver a evaluar el modo de autonomía. */
+async function ejecutarAccionAprobada(intencion, automatico = false) {
   let result;
   let description;
   switch (intencion.tipo) {
@@ -43,12 +50,38 @@ async function ejecutarAccionCRM(intencion) {
   }
 
   if (intencion.tipo === 'generar_informe') {
-    await slackNotifier.postReport(result.data);
+    await slackNotifier.postReport(result.data, result.elapsedSeconds);
   } else {
     const recordId = result.data && result.data.id ? ` (ID: ${result.data.id})` : '';
-    await slackNotifier.postToSlack(`:white_check_mark: ${description}${recordId}. Datos: ${JSON.stringify(intencion.datos)}`);
+    const autonomyNote = automatico ? '\n✅ Ejecutado automáticamente (modo autónomo activo)' : '';
+    await slackNotifier.postToSlack(`:white_check_mark: ${description}${recordId}. Datos: ${formatActionData(intencion.datos)}${autonomyNote}`);
   }
   return result;
 }
 
-module.exports = { ejecutarAccionCRM };
+/** Ejecuta una intención CRM y deja trazabilidad en Slack. */
+async function ejecutarAccionCRM(intencion) {
+  if (!intencion || !intencion.tipo || !intencion.datos) {
+    const error = 'La intención debe incluir tipo y datos.';
+    await slackNotifier.postToSlack(`:x: Error del agente CRM: ${error}`);
+    return { success: false, error };
+  }
+
+  const automatico = process.env.AUTO_APPROVE_ACTIONS === 'true';
+  if (ACTION_TYPES.includes(intencion.tipo) && !automatico) {
+    await slackNotifier.postToSlack(`⏸️ *Acción pendiente de aprobación*\nTipo: ${intencion.tipo}\nDatos:\n${formatActionData(intencion.datos)}\n\nResponde 'aprobar' en este hilo para ejecutar, o 'rechazar' para descartar.`);
+    return { estado: 'pendiente_aprobacion', intencion };
+  }
+
+  return ejecutarAccionAprobada(intencion, automatico && ACTION_TYPES.includes(intencion.tipo));
+}
+
+/** Ejecuta directamente una intención que un humano ya aprobó. */
+async function aprobarAccionPendiente(intencion) {
+  if (!intencion || !intencion.tipo || !intencion.datos) {
+    return { success: false, error: 'La intención aprobada debe incluir tipo y datos.' };
+  }
+  return ejecutarAccionAprobada(intencion, false);
+}
+
+module.exports = { ejecutarAccionCRM, aprobarAccionPendiente };
