@@ -1,0 +1,14 @@
+{
+  "name": "hubspot-crm-agent",
+  "version": "1.0.0",
+  "description": "Agente autónomo para operaciones CRM en HubSpot",
+  "main": "services/crmAgent.js",
+  "scripts": {
+    "start": "node scripts/runAgent.js",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.4.7"
+  }
+}
