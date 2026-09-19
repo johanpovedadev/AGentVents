@@ -1,5 +1,6 @@
 const hubspotClient = require('./hubspotClient');
 const lionPlatformClient = require('./lionPlatformClient');
+const marketingReportService = require('./marketingReportService');
 const metaPublisher = require('./metaPublisher');
 const notifier = require('./notifier');
 const reportService = require('./reportService');
@@ -46,6 +47,10 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
       result = await metaPublisher.publish(intencion.datos.canal, intencion.datos);
       description = `Post publicado en ${intencion.datos.canal}`;
       break;
+    case 'informe_marketing':
+      result = await marketingReportService.generateWeeklyMarketingReport();
+      description = 'Resumen semanal de canales generado';
+      break;
     default:
       result = { success: false, error: `Tipo de intención no soportado: ${intencion.tipo}.` };
   }
@@ -57,6 +62,8 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
 
   if (intencion.tipo === 'generar_informe') {
     await notifier.postReport(result.data, result.elapsedSeconds);
+  } else if (intencion.tipo === 'informe_marketing') {
+    await notifier.postMarketingReport(result.data);
   } else {
     // Solo crear_contacto tiene un equivalente directo en Lion Platform (un
     // prospecto). Los deals no existen en ese modelo y actualizar_contacto no

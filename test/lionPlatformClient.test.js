@@ -44,6 +44,17 @@ test('createProspect reporta un login fallido', async () => {
   assert.match(result.error, /No fue posible conectar con Lion Platform/);
 });
 
+test('listProspects devuelve el listado del tenant autenticado', async () => {
+  const client = freshClient();
+  global.fetch = async (url) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 'jwt' }) };
+    assert.ok(url.endsWith('/prospects'));
+    return { ok: true, status: 200, json: async () => ([{ id: '1', source: 'INSTAGRAM' }]) };
+  };
+  const result = await client.listProspects();
+  assert.deepEqual(result, { success: true, data: [{ id: '1', source: 'INSTAGRAM' }] });
+});
+
 test('createProspect reporta un error de Lion Platform tras loguearse', async () => {
   const client = freshClient();
   global.fetch = async (url) => {
