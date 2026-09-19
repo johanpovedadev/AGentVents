@@ -9,7 +9,8 @@ Está diseñado para una demo de hackathon: recibe una instrucción en lenguaje 
 - Crear y actualizar contactos en HubSpot.
 - Crear deals asociados a un contacto y actualizar su etapa.
 - Generar un diagnóstico de ventas basado en los deals del CRM.
-- Publicar confirmaciones, errores, informes y hand-offs en Slack.
+- Publicar posts en la Página de Facebook y en la cuenta de Instagram Business vinculada, vía Meta Graph API.
+- Publicar confirmaciones, errores, informes y hand-offs en Slack y Telegram.
 - Cuantificar el tiempo que tomó generar cada informe frente a una revisión manual estimada.
 - Operar en modo de aprobación humana o modo autónomo.
 
@@ -46,6 +47,12 @@ HERMES_CHAT_ID=tu_chat_id
 LION_PLATFORM_BASE_URL=http://localhost:8081/api/v1
 LION_EMAIL=super@lionplatform.com
 LION_PASSWORD=password123
+
+# Publicación en redes (publicar_post) vía Meta Graph API.
+META_GRAPH_BASE_URL=https://graph.facebook.com/v21.0
+FB_PAGE_ID=tu-page-id
+FB_PAGE_ACCESS_TOKEN=tu-page-access-token
+IG_BUSINESS_ACCOUNT_ID=tu-ig-business-account-id
 ```
 
 > `.env` está ignorado por Git y nunca debe publicarse.
@@ -107,6 +114,17 @@ node scripts/runAgent.js "genera un informe de ventas"
 
 El mensaje de Slack incluye cuánto tardó el agente en segundos y la comparación estimada con una revisión manual de 45 minutos.
 
+### Publicar en redes sociales
+
+`publicar_post` requiere aprobación humana igual que las acciones de CRM — publicar en un canal real y público nunca se ejecuta en silencio.
+
+```bash
+node scripts/runAgent.js "publica en facebook: Automatiza tu WhatsApp con IA, enlaza a https://lioncore.co" --auto
+node scripts/runAgent.js "publica en instagram la demo del bot con la imagen https://cdn.example.com/demo.jpg" --auto
+```
+
+Facebook necesita `texto` (y opcionalmente `enlace`); Instagram necesita `imagenUrl` (Graph API no publica solo texto en Instagram) y opcionalmente `texto` como pie de foto.
+
 ## Flujo de una acción CRM
 
 ```text
@@ -116,7 +134,8 @@ intentParser (Gemini → JSON)
        ↓
 crmAgent
   ├─ aprobación requerida → notifier (Slack + Telegram) → pendiente_aprobacion
-  └─ autónomo/aprobado → HubSpot (+ Lion Platform si es crear_contacto) → notifier confirma resultado
+  └─ autónomo/aprobado → HubSpot (+ Lion Platform si es crear_contacto)
+                          o metaPublisher (si es publicar_post) → notifier confirma resultado
 ```
 
 `crear_contacto` es el único tipo que se espeja en Lion Platform (el CRM real de
@@ -135,6 +154,7 @@ acción en HubSpot no se revierte — el error queda anotado en la notificación
 | `services/crmAgent.js` | Controla la autonomía, orquesta HubSpot/Lion Platform y notifica. |
 | `services/hubspotClient.js` | Cliente REST v3 de contactos y deals de HubSpot. |
 | `services/lionPlatformClient.js` | Cliente del CRM de Lion Platform — espeja `crear_contacto` como prospecto. |
+| `services/metaPublisher.js` | Cliente de Meta Graph API — publica en la Página de Facebook y en Instagram Business. |
 | `services/reportService.js` | Consulta deals, genera el diagnóstico y mide su duración. |
 | `services/notifier.js` | Publica el mismo mensaje en Slack y Telegram a la vez. |
 | `services/slackNotifier.js` | Envía texto al Incoming Webhook de Slack. |
@@ -149,7 +169,7 @@ El proyecto ya incluye pruebas con la cobertura nativa de Node. Para ejecutarlas
 npm test
 ```
 
-El umbral configurado es 80% para líneas, funciones y ramas.
+El umbral configurado es 80% para líneas, funciones y ramas. `test/` tiene una prueba unitaria por servicio (mockeando solo su propia frontera de red) y `test/integration/` tiene pruebas de punta a punta que encadenan los módulos reales y solo falsean el SDK de Gemini y la red externa.
 
 ## Automatización con GitHub Actions
 
