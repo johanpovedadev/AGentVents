@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const hubspot = require('../services/hubspotClient');
 const lionPlatform = require('../services/lionPlatformClient');
+const metaPublisher = require('../services/metaPublisher');
 const notifier = require('../services/notifier');
 const report = require('../services/reportService');
 const { ejecutarAccionCRM, aprobarAccionPendiente } = require('../services/crmAgent');
@@ -18,6 +19,7 @@ test.beforeEach(() => {
   hubspot.updateContact = async () => ({ success: true, data: { id: '4' } });
   lionPlatform.createProspect = async () => ({ success: true, data: { id: '592' } });
   report.generateSalesReport = async () => ({ success: true, data: 'Informe listo' });
+  metaPublisher.publish = async () => ({ success: true, data: { id: 'post-1' } });
 });
 
 test('ejecuta las cuatro operaciones CRM y las notifica', async () => {
@@ -62,6 +64,37 @@ test('notifica fallos y valida intenciones inválidas', async () => {
   assert.match(messages[0], /duplicado/);
   assert.equal((await ejecutarAccionCRM({ tipo: 'desconocido', datos: {} })).success, false);
   assert.equal((await ejecutarAccionCRM()).success, false);
+});
+
+test('publicar_post llama al canal indicado y notifica el resultado', async () => {
+  let received;
+  metaPublisher.publish = async (canal, datos) => {
+    received = { canal, datos };
+    return { success: true, data: { id: 'post-1' } };
+  };
+  const result = await ejecutarAccionCRM({ tipo: 'publicar_post', datos: { canal: 'instagram', texto: 'Demo del bot', imagenUrl: 'https://cdn.example.com/a.jpg' } });
+  assert.equal(result.success, true);
+  assert.deepEqual(received, { canal: 'instagram', datos: { canal: 'instagram', texto: 'Demo del bot', imagenUrl: 'https://cdn.example.com/a.jpg' } });
+  assert.match(messages[0], /Post publicado en instagram/);
+});
+
+test('publicar_post requiere aprobación humana por defecto y se publica tras aprobarla', async () => {
+  process.env.AUTO_APPROVE_ACTIONS = 'false';
+  const intencion = { tipo: 'publicar_post', datos: { canal: 'facebook', texto: 'Automatiza tu WhatsApp' } };
+  const pending = await ejecutarAccionCRM(intencion);
+  assert.equal(pending.estado, 'pendiente_aprobacion');
+  assert.match(messages[0], /Acción pendiente de aprobación/);
+
+  const approved = await aprobarAccionPendiente(intencion);
+  assert.equal(approved.success, true);
+  assert.match(messages[1], /Post publicado en facebook/);
+});
+
+test('un fallo al publicar se notifica como error', async () => {
+  metaPublisher.publish = async () => ({ success: false, error: 'FB_PAGE_ACCESS_TOKEN faltante' });
+  const result = await ejecutarAccionCRM({ tipo: 'publicar_post', datos: { canal: 'facebook', texto: 'hola' } });
+  assert.equal(result.success, false);
+  assert.match(messages[0], /FB_PAGE_ACCESS_TOKEN faltante/);
 });
 
 test('deja la acción pendiente y permite ejecutarla tras aprobación humana', async () => {

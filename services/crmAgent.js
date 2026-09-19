@@ -1,9 +1,10 @@
 const hubspotClient = require('./hubspotClient');
 const lionPlatformClient = require('./lionPlatformClient');
+const metaPublisher = require('./metaPublisher');
 const notifier = require('./notifier');
 const reportService = require('./reportService');
 
-const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto'];
+const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto', 'publicar_post'];
 
 /** Convierte los datos de la intención en texto legible para una aprobación humana. */
 function formatActionData(datos) {
@@ -40,6 +41,10 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
     case 'generar_informe':
       result = await reportService.generateSalesReport();
       description = 'Informe de ventas generado';
+      break;
+    case 'publicar_post':
+      result = await metaPublisher.publish(intencion.datos.canal, intencion.datos);
+      description = `Post publicado en ${intencion.datos.canal}`;
       break;
     default:
       result = { success: false, error: `Tipo de intención no soportado: ${intencion.tipo}.` };
