@@ -8,7 +8,7 @@ async function parseIntent(message) {
   if (!process.env.GEMINI_API_KEY) return { success: false, error: 'Falta la variable de entorno GEMINI_API_KEY.' };
 
   const schema = '{"tipo":"crear_contacto|crear_deal|actualizar_deal|actualizar_contacto|generar_informe|publicar_post|informe_marketing","datos":{}}';
-  const prompt = `Convierte esta instrucción CRM al siguiente JSON exacto: ${schema}. Responde SOLO JSON válido, sin Markdown ni explicación. Para crear_deal usa contactId si está disponible; para actualizar_deal usa dealId y dealstage; para actualizar_contacto usa contactId y propiedades; para publicar_post usa canal ('facebook' o 'instagram'), texto y, si aplica, enlace (Facebook) o imagenUrl (Instagram, obligatorio); informe_marketing no lleva datos, es el resumen semanal de prospectos nuevos por canal en Lion Platform. Instrucción: ${message}`;
+  const prompt = `Convierte esta instrucción CRM al siguiente JSON exacto: ${schema}. Responde SOLO JSON válido, sin Markdown ni explicación. Para crear_deal usa contactId si está disponible; para actualizar_deal usa dealId y dealstage; para actualizar_contacto usa contactId y propiedades; para publicar_post usa canal ('facebook' o 'instagram'), texto y, si aplica, enlace (Facebook) o imagenUrl (Instagram con una sola imagen) o imagenes (arreglo de 2 a 10 URLs, para un carrusel de Instagram); informe_marketing no lleva datos, es el resumen semanal de prospectos nuevos por canal en Lion Platform. Instrucción: ${message}`;
 
   try {
     const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
