@@ -37,6 +37,15 @@ HUBSPOT_ACCESS_TOKEN=pat-na1-tu-token
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 GEMINI_API_KEY=tu-api-key
 AUTO_APPROVE_ACTIONS=false
+
+# Notificaciones por Telegram (bot Jarvis León / LionTelegram), en paralelo a Slack.
+HERMES_BOT_TOKEN=tu_token_de_botfather
+HERMES_CHAT_ID=tu_chat_id
+
+# Espejo de crear_contacto en Lion Platform (CRM real de Service Store VIP).
+LION_PLATFORM_BASE_URL=http://localhost:8081/api/v1
+LION_EMAIL=super@lionplatform.com
+LION_PASSWORD=password123
 ```
 
 > `.env` está ignorado por Git y nunca debe publicarse.
@@ -106,19 +115,30 @@ Instrucción natural
 intentParser (Gemini → JSON)
        ↓
 crmAgent
-  ├─ aprobación requerida → Slack → pendiente_aprobacion
-  └─ autónomo/aprobado → HubSpot → Slack confirma resultado
+  ├─ aprobación requerida → notifier (Slack + Telegram) → pendiente_aprobacion
+  └─ autónomo/aprobado → HubSpot (+ Lion Platform si es crear_contacto) → notifier confirma resultado
 ```
+
+`crear_contacto` es el único tipo que se espeja en Lion Platform (el CRM real de
+Service Store VIP): además de crear el contacto en HubSpot, crea un prospecto
+nuevo vía `lionPlatformClient`. Los deals no tienen equivalente en ese modelo
+y `actualizar_contacto`/`actualizar_deal` no tienen forma de saber a qué
+prospecto de Lion Platform corresponde un `contactId`/`dealId` de HubSpot, así
+que esos tres tipos siguen viviendo solo en HubSpot. Si el espejo falla, la
+acción en HubSpot no se revierte — el error queda anotado en la notificación.
 
 ## Servicios principales
 
 | Archivo | Responsabilidad |
 | --- | --- |
 | `services/intentParser.js` | Convierte lenguaje natural a una intención CRM válida. |
-| `services/crmAgent.js` | Controla la autonomía, orquesta HubSpot y notifica Slack. |
+| `services/crmAgent.js` | Controla la autonomía, orquesta HubSpot/Lion Platform y notifica. |
 | `services/hubspotClient.js` | Cliente REST v3 de contactos y deals de HubSpot. |
+| `services/lionPlatformClient.js` | Cliente del CRM de Lion Platform — espeja `crear_contacto` como prospecto. |
 | `services/reportService.js` | Consulta deals, genera el diagnóstico y mide su duración. |
-| `services/slackNotifier.js` | Envía informes, hand-offs, confirmaciones y errores a Slack. |
+| `services/notifier.js` | Publica el mismo mensaje en Slack y Telegram a la vez. |
+| `services/slackNotifier.js` | Envía texto al Incoming Webhook de Slack. |
+| `services/telegramNotifier.js` | Envía texto al bot de Telegram (Jarvis León / LionTelegram). |
 | `scripts/runAgent.js` | Entrada de línea de comandos para la demo. |
 
 ## Verificación
