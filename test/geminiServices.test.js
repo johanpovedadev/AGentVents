@@ -35,6 +35,22 @@ test('parseIntent devuelve una intención Gemini válida', async () => {
   assert.equal(result.data.tipo, 'crear_contacto');
 });
 
+test('parseIntent acepta publicar_post como tipo válido', async () => {
+  process.env.GEMINI_API_KEY = 'clave';
+  nextText = '{"tipo":"publicar_post","datos":{"canal":"instagram","texto":"Demo del bot","imagenUrl":"https://cdn.example.com/a.jpg"}}';
+  const result = await parseIntent('publica en instagram la demo del bot');
+  assert.equal(result.success, true);
+  assert.equal(result.data.tipo, 'publicar_post');
+});
+
+test('parseIntent acepta informe_marketing como tipo válido', async () => {
+  process.env.GEMINI_API_KEY = 'clave';
+  nextText = '{"tipo":"informe_marketing","datos":{}}';
+  const result = await parseIntent('dame el resumen semanal de canales');
+  assert.equal(result.success, true);
+  assert.equal(result.data.tipo, 'informe_marketing');
+});
+
 test('parseIntent valida texto, clave, JSON y estructura', async () => {
   assert.equal((await parseIntent('')).success, false);
   delete process.env.GEMINI_API_KEY;

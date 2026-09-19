@@ -1,8 +1,11 @@
 const hubspotClient = require('./hubspotClient');
-const slackNotifier = require('./slackNotifier');
+const lionPlatformClient = require('./lionPlatformClient');
+const marketingReportService = require('./marketingReportService');
+const metaPublisher = require('./metaPublisher');
+const notifier = require('./notifier');
 const reportService = require('./reportService');
 
-const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto'];
+const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto', 'publicar_post'];
 
 /** Convierte los datos de la intención en texto legible para una aprobación humana. */
 function formatActionData(datos) {
@@ -40,36 +43,58 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
       result = await reportService.generateSalesReport();
       description = 'Informe de ventas generado';
       break;
+    case 'publicar_post':
+      result = await metaPublisher.publish(intencion.datos.canal, intencion.datos);
+      description = `Post publicado en ${intencion.datos.canal}`;
+      break;
+    case 'informe_marketing':
+      result = await marketingReportService.generateWeeklyMarketingReport();
+      description = 'Resumen semanal de canales generado';
+      break;
     default:
       result = { success: false, error: `Tipo de intención no soportado: ${intencion.tipo}.` };
   }
 
   if (!result.success) {
-    await slackNotifier.postToSlack(`:x: Error al ${description || 'procesar la acción'}: ${result.error}`);
+    await notifier.broadcast(`:x: Error al ${description || 'procesar la acción'}: ${result.error}`);
     return result;
   }
 
   if (intencion.tipo === 'generar_informe') {
-    await slackNotifier.postReport(result.data, result.elapsedSeconds);
+    await notifier.postReport(result.data, result.elapsedSeconds);
+  } else if (intencion.tipo === 'informe_marketing') {
+    await notifier.postMarketingReport(result.data);
   } else {
+    // Solo crear_contacto tiene un equivalente directo en Lion Platform (un
+    // prospecto). Los deals no existen en ese modelo y actualizar_contacto no
+    // tiene forma de saber a qué prospecto corresponde un contactId de
+    // HubSpot, así que esos dos tipos siguen viviendo solo en HubSpot.
+    let lionNote = '';
+    if (intencion.tipo === 'crear_contacto') {
+      const lionResult = await lionPlatformClient.createProspect(intencion.datos);
+      lionNote = lionResult.success
+        ? '\n🦁 Espejado en Lion Platform: prospecto creado.'
+        : `\n⚠️ No se pudo espejar en Lion Platform: ${lionResult.error}`;
+    }
+
     const recordId = result.data && result.data.id ? ` (ID: ${result.data.id})` : '';
     const autonomyNote = automatico ? '\n✅ Ejecutado automáticamente (modo autónomo activo)' : '';
-    await slackNotifier.postToSlack(`:white_check_mark: ${description}${recordId}. Datos: ${formatActionData(intencion.datos)}${autonomyNote}`);
+    await notifier.broadcast(`:white_check_mark: ${description}${recordId}. Datos: ${formatActionData(intencion.datos)}${autonomyNote}${lionNote}`);
   }
   return result;
 }
 
-/** Ejecuta una intención CRM y deja trazabilidad en Slack. */
+/** Ejecuta una intención CRM y deja trazabilidad en Slack y Telegram. */
 async function ejecutarAccionCRM(intencion) {
   if (!intencion || !intencion.tipo || !intencion.datos) {
     const error = 'La intención debe incluir tipo y datos.';
-    await slackNotifier.postToSlack(`:x: Error del agente CRM: ${error}`);
+    await notifier.broadcast(`:x: Error del agente CRM: ${error}`);
     return { success: false, error };
   }
 
   const automatico = process.env.AUTO_APPROVE_ACTIONS === 'true';
   if (ACTION_TYPES.includes(intencion.tipo) && !automatico) {
-    await slackNotifier.postToSlack(`⏸️ *Acción pendiente de aprobación*\nTipo: ${intencion.tipo}\nDatos:\n${formatActionData(intencion.datos)}\n\nResponde 'aprobar' en este hilo para ejecutar, o 'rechazar' para descartar.`);
+    await notifier.broadcast(`⏸️ *Acción pendiente de aprobación*\nTipo: ${intencion.tipo}\nDatos:\n${formatActionData(intencion.datos)}\n\nResponde 'aprobar' en este hilo para ejecutar, o 'rechazar' para descartar.`);
     return { estado: 'pendiente_aprobacion', intencion };
   }
 

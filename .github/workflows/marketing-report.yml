@@ -1,0 +1,40 @@
+name: Resumen semanal de marketing
+
+on:
+  # Permite ejecutar el resumen desde la pestaña Actions cuando se necesite.
+  workflow_dispatch:
+  # 08:00 en Bogotá (UTC-5), los lunes.
+  schedule:
+    - cron: '0 13 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  generar-resumen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Generar y publicar el resumen semanal de canales
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+          LION_EMAIL: ${{ secrets.LION_EMAIL }}
+          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
+          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
+          AUTO_APPROVE_ACTIONS: 'true'
+        run: node scripts/runAgent.js "dame el resumen semanal de canales" --auto
