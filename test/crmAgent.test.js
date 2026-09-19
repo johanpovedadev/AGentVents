@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const hubspot = require('../services/hubspotClient');
 const lionPlatform = require('../services/lionPlatformClient');
+const marketingReport = require('../services/marketingReportService');
 const metaPublisher = require('../services/metaPublisher');
 const notifier = require('../services/notifier');
 const report = require('../services/reportService');
@@ -20,6 +21,8 @@ test.beforeEach(() => {
   lionPlatform.createProspect = async () => ({ success: true, data: { id: '592' } });
   report.generateSalesReport = async () => ({ success: true, data: 'Informe listo' });
   metaPublisher.publish = async () => ({ success: true, data: { id: 'post-1' } });
+  marketingReport.generateWeeklyMarketingReport = async () => ({ success: true, data: '3 prospectos nuevos', totalNuevos: 3 });
+  notifier.postMarketingReport = async (message) => { messages.push(message); return { success: true }; };
 });
 
 test('ejecuta las cuatro operaciones CRM y las notifica', async () => {
@@ -56,6 +59,21 @@ test('genera informe y lo publica en Slack', async () => {
   const result = await ejecutarAccionCRM({ tipo: 'generar_informe', datos: {} });
   assert.equal(result.data, 'Informe listo');
   assert.deepEqual(messages, ['Informe listo']);
+});
+
+test('genera el resumen semanal de marketing sin pedir aprobación', async () => {
+  process.env.AUTO_APPROVE_ACTIONS = 'false';
+  const result = await ejecutarAccionCRM({ tipo: 'informe_marketing', datos: {} });
+  assert.equal(result.success, true);
+  assert.equal(result.totalNuevos, 3);
+  assert.equal(messages[0], '3 prospectos nuevos');
+});
+
+test('un fallo al generar el resumen de marketing se notifica como error', async () => {
+  marketingReport.generateWeeklyMarketingReport = async () => ({ success: false, error: 'Lion Platform caído' });
+  const result = await ejecutarAccionCRM({ tipo: 'informe_marketing', datos: {} });
+  assert.equal(result.success, false);
+  assert.match(messages[0], /Lion Platform caído/);
 });
 
 test('notifica fallos y valida intenciones inválidas', async () => {

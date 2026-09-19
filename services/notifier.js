@@ -20,4 +20,9 @@ async function postReport(report, elapsedSeconds = 0) {
   return broadcast(`:bar_chart: Informe de ventas\n${report}\n\n⏱️ Esto le tomaría a un gerente de ventas ~45 min revisando el CRM manualmente. El agente lo hizo en ${elapsedSeconds} segundos.`);
 }
 
-module.exports = { broadcast, notifyHandoff, postReport };
+/** Publica el resumen semanal de prospectos nuevos por canal, en ambos canales. */
+async function postMarketingReport(report) {
+  return broadcast(`:chart_with_upwards_trend: Resumen semanal de canales\n${report}`);
+}
+
+module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport };

@@ -31,6 +31,8 @@ test('notifyHandoff y postReport formatean y mandan a ambos canales', async () =
   telegram.postToTelegram = async (message) => { seen.push(message); return { success: true }; };
   await notifier.notifyHandoff('revisar');
   await notifier.postReport('todo bien', 3);
+  await notifier.postMarketingReport('5 prospectos nuevos');
   assert.match(seen[0], /intervención humana/);
   assert.match(seen[2], /Informe de ventas/);
+  assert.match(seen[4], /Resumen semanal de canales/);
 });

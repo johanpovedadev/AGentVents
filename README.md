@@ -9,6 +9,7 @@ Está diseñado para una demo de hackathon: recibe una instrucción en lenguaje 
 - Crear y actualizar contactos en HubSpot.
 - Crear deals asociados a un contacto y actualizar su etapa.
 - Generar un diagnóstico de ventas basado en los deals del CRM.
+- Generar el resumen semanal de prospectos nuevos por canal en Lion Platform (qué red está trayendo clientes).
 - Publicar posts en la Página de Facebook y en la cuenta de Instagram Business vinculada, vía Meta Graph API.
 - Publicar confirmaciones, errores, informes y hand-offs en Slack y Telegram.
 - Cuantificar el tiempo que tomó generar cada informe frente a una revisión manual estimada.
@@ -125,6 +126,14 @@ node scripts/runAgent.js "publica en instagram la demo del bot con la imagen htt
 
 Facebook necesita `texto` (y opcionalmente `enlace`); Instagram necesita `imagenUrl` (Graph API no publica solo texto en Instagram) y opcionalmente `texto` como pie de foto.
 
+### Resumen semanal de marketing
+
+Cuenta, con el `createdAt` real de cada prospecto en Lion Platform, cuántos son nuevos en los últimos 7 días y de qué canal vinieron. No requiere aprobación (es solo lectura) y corre automáticamente cada lunes vía `.github/workflows/marketing-report.yml`.
+
+```bash
+node scripts/runAgent.js "dame el resumen semanal de canales"
+```
+
 ## Flujo de una acción CRM
 
 ```text
@@ -155,6 +164,7 @@ acción en HubSpot no se revierte — el error queda anotado en la notificación
 | `services/hubspotClient.js` | Cliente REST v3 de contactos y deals de HubSpot. |
 | `services/lionPlatformClient.js` | Cliente del CRM de Lion Platform — espeja `crear_contacto` como prospecto. |
 | `services/metaPublisher.js` | Cliente de Meta Graph API — publica en la Página de Facebook y en Instagram Business. |
+| `services/marketingReportService.js` | Resumen semanal de prospectos nuevos por canal, desde Lion Platform. |
 | `services/reportService.js` | Consulta deals, genera el diagnóstico y mide su duración. |
 | `services/notifier.js` | Publica el mismo mensaje en Slack y Telegram a la vez. |
 | `services/slackNotifier.js` | Envía texto al Incoming Webhook de Slack. |
@@ -182,3 +192,5 @@ Antes de activarlo, configura estos secretos en **Settings → Secrets and varia
 - `SLACK_WEBHOOK_URL`
 
 El workflow solo genera informes: no crea ni actualiza contactos o deals.
+
+`.github/workflows/marketing-report.yml` corre el resumen semanal de canales cada lunes a las 08:00 de Bogotá. Además de los anteriores, necesita `LION_PLATFORM_BASE_URL`, `LION_EMAIL`, `LION_PASSWORD`, `HERMES_BOT_TOKEN` y `HERMES_CHAT_ID` como secretos del repositorio.

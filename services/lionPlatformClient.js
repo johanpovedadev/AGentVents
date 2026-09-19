@@ -64,4 +64,9 @@ async function createProspect(datos) {
   });
 }
 
-module.exports = { createProspect };
+/** Lista todos los prospectos del tenant autenticado. */
+async function listProspects() {
+  return lionRequest('/prospects');
+}
+
+module.exports = { createProspect, listProspects };
