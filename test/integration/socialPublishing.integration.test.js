@@ -99,6 +99,24 @@ test('flujo completo: modo autónomo publica en Instagram sin esperar aprobació
   assert.ok(requests.some((r) => r.url.startsWith('https://hooks.slack.com')), 'debe confirmar la publicación por Slack');
 });
 
+test('flujo completo: modo autónomo publica un carrusel de Instagram con varias imágenes', async () => {
+  process.env.AUTO_APPROVE_ACTIONS = 'true';
+  const requests = [];
+  global.fetch = routedFetch(requests);
+
+  nextGeminiText = '{"tipo":"publicar_post","datos":{"canal":"instagram","texto":"Antes y después del bot","imagenes":["https://cdn.example.com/1.jpg","https://cdn.example.com/2.jpg","https://cdn.example.com/3.jpg"]}}';
+  const parsed = await parseIntent('publica un carrusel en instagram con estas tres imágenes');
+  assert.equal(parsed.success, true);
+
+  const result = await ejecutarAccionCRM(parsed.data);
+  assert.equal(result.success, true);
+  assert.equal(result.data.id, 'post-1');
+
+  const mediaRequests = requests.filter((r) => r.url.endsWith('/999/media'));
+  assert.equal(mediaRequests.length, 4, '3 contenedores hijo + 1 contenedor padre del carrusel');
+  assert.ok(requests.some((r) => r.url.endsWith('/999/media_publish')), 'debe publicar el contenedor del carrusel');
+});
+
 test('flujo completo: un canal no soportado se notifica como error sin llamar a la Graph API', async () => {
   process.env.AUTO_APPROVE_ACTIONS = 'true';
   const requests = [];

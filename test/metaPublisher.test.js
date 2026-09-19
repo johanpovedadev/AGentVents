@@ -142,6 +142,93 @@ test('publishToFacebook y publishToInstagram reportan errores de red', () => wit
   }
 ));
 
+test('publishInstagramCarousel sube cada imagen como contenedor hijo y publica el carrusel', () => withEnv(
+  { IG_BUSINESS_ACCOUNT_ID: '999', FB_PAGE_ACCESS_TOKEN: 'token-ig' },
+  async () => {
+    const publisher = freshPublisher();
+    const calls = [];
+    let childCounter = 0;
+    global.fetch = async (url, options) => {
+      calls.push({ url, body: options.body });
+      if (url.endsWith('/media') && options.body.get('is_carousel_item') === 'true') {
+        childCounter += 1;
+        return { ok: true, status: 200, json: async () => ({ id: `child-${childCounter}` }) };
+      }
+      if (url.endsWith('/media')) return { ok: true, status: 200, json: async () => ({ id: 'carousel-container' }) };
+      return { ok: true, status: 200, json: async () => ({ id: 'post-1' }) };
+    };
+
+    const result = await publisher.publishInstagramCarousel({
+      imagenes: ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg', 'https://cdn.example.com/3.jpg'],
+      texto: 'Automatiza tu WhatsApp'
+    });
+
+    assert.deepEqual(result, { success: true, data: { id: 'post-1' } });
+    const childCalls = calls.filter((c) => c.body.get('is_carousel_item') === 'true');
+    assert.equal(childCalls.length, 3);
+    assert.equal(childCalls[0].body.get('image_url'), 'https://cdn.example.com/1.jpg');
+
+    const parentCall = calls.find((c) => c.url.endsWith('/media') && c.body.get('media_type') === 'CAROUSEL');
+    assert.equal(parentCall.body.get('children'), 'child-1,child-2,child-3');
+    assert.equal(parentCall.body.get('caption'), 'Automatiza tu WhatsApp');
+
+    const publishCall = calls.find((c) => c.url.endsWith('/media_publish'));
+    assert.equal(publishCall.body.get('creation_id'), 'carousel-container');
+  }
+));
+
+test('publishInstagramCarousel exige entre 2 y 10 imágenes', () => withEnv(
+  { IG_BUSINESS_ACCOUNT_ID: '999', FB_PAGE_ACCESS_TOKEN: 'token-ig' },
+  async () => {
+    const publisher = freshPublisher();
+    assert.match((await publisher.publishInstagramCarousel({ imagenes: [] })).error, /entre 2 y 10/);
+    assert.match((await publisher.publishInstagramCarousel({ imagenes: ['https://cdn.example.com/1.jpg'] })).error, /entre 2 y 10/);
+    const once = Array.from({ length: 11 }, (_, i) => `https://cdn.example.com/${i}.jpg`);
+    assert.match((await publisher.publishInstagramCarousel({ imagenes: once })).error, /entre 2 y 10/);
+  }
+));
+
+test('publishInstagramCarousel se detiene si falla un contenedor hijo, sin crear el carrusel', () => withEnv(
+  { IG_BUSINESS_ACCOUNT_ID: '999', FB_PAGE_ACCESS_TOKEN: 'token-ig' },
+  async () => {
+    const publisher = freshPublisher();
+    const calls = [];
+    global.fetch = async (url, options) => {
+      calls.push(url);
+      if (calls.length === 1) return { ok: true, status: 200, json: async () => ({ id: 'child-1' }) };
+      return { ok: false, status: 400, json: async () => ({ error: { message: 'imagen inválida' } }) };
+    };
+    const result = await publisher.publishInstagramCarousel({ imagenes: ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg'] });
+    assert.equal(result.success, false);
+    assert.match(result.error, /imagen inválida/);
+    assert.equal(calls.length, 2, 'no debe intentar crear el contenedor padre tras el fallo');
+  }
+));
+
+test('publishInstagramCarousel reporta un fallo al crear el contenedor padre', () => withEnv(
+  { IG_BUSINESS_ACCOUNT_ID: '999', FB_PAGE_ACCESS_TOKEN: 'token-ig' },
+  async () => {
+    const publisher = freshPublisher();
+    global.fetch = async (url, options) => {
+      if (options.body.get('is_carousel_item') === 'true') return { ok: true, status: 200, json: async () => ({ id: 'child-1' }) };
+      return { ok: false, status: 500, json: async () => ({ error: { message: 'carrusel no disponible' } }) };
+    };
+    const result = await publisher.publishInstagramCarousel({ imagenes: ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg'] });
+    assert.equal(result.success, false);
+    assert.match(result.error, /carrusel no disponible/);
+  }
+));
+
+test("publish enruta instagram con datos.imagenes a publishInstagramCarousel", () => withEnv(
+  { IG_BUSINESS_ACCOUNT_ID: '999', FB_PAGE_ACCESS_TOKEN: 'token' },
+  async () => {
+    const publisher = freshPublisher();
+    global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ id: 'ok' }) });
+    const result = await publisher.publish('instagram', { imagenes: ['https://cdn.example.com/1.jpg', 'https://cdn.example.com/2.jpg'] });
+    assert.equal(result.success, true);
+  }
+));
+
 test('publish enruta a Facebook o Instagram según el canal', () => withEnv(
   { FB_PAGE_ID: '111', FB_PAGE_ACCESS_TOKEN: 'token', IG_BUSINESS_ACCOUNT_ID: '999' },
   async () => {

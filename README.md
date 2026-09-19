@@ -10,7 +10,7 @@ Está diseñado para una demo de hackathon: recibe una instrucción en lenguaje 
 - Crear deals asociados a un contacto y actualizar su etapa.
 - Generar un diagnóstico de ventas basado en los deals del CRM.
 - Generar el resumen semanal de prospectos nuevos por canal en Lion Platform (qué red está trayendo clientes).
-- Publicar posts en la Página de Facebook y en la cuenta de Instagram Business vinculada, vía Meta Graph API.
+- Publicar posts (foto única o carrusel de hasta 10 imágenes) en la Página de Facebook y en la cuenta de Instagram Business vinculada, vía Meta Graph API.
 - Publicar confirmaciones, errores, informes y hand-offs en Slack y Telegram.
 - Cuantificar el tiempo que tomó generar cada informe frente a una revisión manual estimada.
 - Operar en modo de aprobación humana o modo autónomo.
@@ -122,9 +122,10 @@ El mensaje de Slack incluye cuánto tardó el agente en segundos y la comparaci�
 ```bash
 node scripts/runAgent.js "publica en facebook: Automatiza tu WhatsApp con IA, enlaza a https://lioncore.co" --auto
 node scripts/runAgent.js "publica en instagram la demo del bot con la imagen https://cdn.example.com/demo.jpg" --auto
+node scripts/runAgent.js "publica un carrusel en instagram con https://cdn.example.com/1.jpg, https://cdn.example.com/2.jpg y https://cdn.example.com/3.jpg" --auto
 ```
 
-Facebook necesita `texto` (y opcionalmente `enlace`); Instagram necesita `imagenUrl` (Graph API no publica solo texto en Instagram) y opcionalmente `texto` como pie de foto.
+Facebook necesita `texto` (y opcionalmente `enlace`); Instagram necesita `imagenUrl` (Graph API no publica solo texto en Instagram) y opcionalmente `texto` como pie de foto. Para un carrusel, `imagenes` es un arreglo de 2 a 10 URLs en vez de `imagenUrl` — cada imagen se sube como contenedor hijo antes de publicar el carrusel completo.
 
 ### Resumen semanal de marketing
 
