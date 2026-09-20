@@ -4,6 +4,11 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const STALE_DAYS = 10;
 const MAX_LISTED = 8;
 const TERMINAL_STAGES = new Set(['CLIENTE_ACTIVO', 'PERDIDO']);
+// Solo estas etapas cuentan para "estancado": el prospecto ya mostró interés
+// real (agendó demo, la hizo, recibió propuesta, está negociando). Silencio
+// en POR_CONTACTAR/CONTACTADO/SIN_WHATSAPP es esperado — no se le insiste a
+// quien no respondió al outreach frío, por regla explícita del negocio.
+const ENGAGED_STAGES = new Set(['DEMO_AGENDADA', 'DEMO_REALIZADA', 'PROPUESTA_ENVIADA', 'EN_NEGOCIACION']);
 
 const SOURCE_LABELS = {
   GOOGLE_MAPS: 'Google Maps',
@@ -98,7 +103,7 @@ async function generateFunnelHealthReport() {
   const prospectos = result.data;
 
   const vencidos = prospectos.filter((p) => p.stage && !TERMINAL_STAGES.has(p.stage) && isPast(p.nextActionDate));
-  const estancados = prospectos.filter((p) => p.stage && !TERMINAL_STAGES.has(p.stage)
+  const estancados = prospectos.filter((p) => p.stage && ENGAGED_STAGES.has(p.stage)
     && p.lastInteractionAt && daysSince(p.lastInteractionAt) >= STALE_DAYS);
   const pagoAtrasado = prospectos.filter((p) => p.stage === 'CLIENTE_ACTIVO' && p.paymentStatus === 'VENCIDO');
   const clientesSanos = prospectos.filter((p) => p.stage === 'CLIENTE_ACTIVO' && p.paymentStatus === 'AL_DIA'
