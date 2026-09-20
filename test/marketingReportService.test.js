@@ -77,21 +77,23 @@ test('generateFunnelHealthReport detecta seguimientos vencidos, ignorando etapas
   assert.doesNotMatch(result.data, /Perdido viejo/);
 });
 
-test('generateFunnelHealthReport detecta prospectos estancados por inactividad', async () => {
+test('generateFunnelHealthReport detecta prospectos estancados solo en etapas de interés real', async () => {
   lionPlatform.listProspects = async () => ({
     success: true,
     data: [
-      { id: '1', businessName: 'Sin contacto hace rato', stage: 'CONTACTADO', lastInteractionAt: daysAgo(15) },
-      { id: '2', businessName: 'Contacto reciente', stage: 'CONTACTADO', lastInteractionAt: daysAgo(2) },
-      { id: '3', businessName: 'Sin fecha registrada', stage: 'CONTACTADO', lastInteractionAt: null }
+      { id: '1', businessName: 'Demo sin seguimiento', stage: 'DEMO_AGENDADA', lastInteractionAt: daysAgo(15) },
+      { id: '2', businessName: 'Contacto reciente', stage: 'DEMO_AGENDADA', lastInteractionAt: daysAgo(2) },
+      { id: '3', businessName: 'Sin fecha registrada', stage: 'DEMO_AGENDADA', lastInteractionAt: null },
+      { id: '4', businessName: 'Outreach frio sin responder', stage: 'CONTACTADO', lastInteractionAt: daysAgo(30) }
     ]
   });
 
   const result = await generateFunnelHealthReport();
   assert.equal(result.counts.estancados, 1);
-  assert.match(result.data, /Sin contacto hace rato/);
+  assert.match(result.data, /Demo sin seguimiento/);
   assert.doesNotMatch(result.data, /Contacto reciente/);
   assert.doesNotMatch(result.data, /Sin fecha registrada/);
+  assert.doesNotMatch(result.data, /Outreach frio sin responder/);
 });
 
 test('generateFunnelHealthReport marca riesgo de retención por pago atrasado', async () => {
