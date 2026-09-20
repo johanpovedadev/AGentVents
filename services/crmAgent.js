@@ -51,6 +51,10 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
       result = await marketingReportService.generateWeeklyMarketingReport();
       description = 'Resumen semanal de canales generado';
       break;
+    case 'acciones_embudo':
+      result = await marketingReportService.generateFunnelHealthReport();
+      description = 'Acciones de mejora del embudo generadas';
+      break;
     default:
       result = { success: false, error: `Tipo de intención no soportado: ${intencion.tipo}.` };
   }
@@ -64,6 +68,8 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
     await notifier.postReport(result.data, result.elapsedSeconds);
   } else if (intencion.tipo === 'informe_marketing') {
     await notifier.postMarketingReport(result.data);
+  } else if (intencion.tipo === 'acciones_embudo') {
+    await notifier.postFunnelHealthReport(result.data);
   } else {
     // Solo crear_contacto tiene un equivalente directo en Lion Platform (un
     // prospecto). Los deals no existen en ese modelo y actualizar_contacto no

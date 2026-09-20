@@ -23,6 +23,8 @@ test.beforeEach(() => {
   metaPublisher.publish = async () => ({ success: true, data: { id: 'post-1' } });
   marketingReport.generateWeeklyMarketingReport = async () => ({ success: true, data: '3 prospectos nuevos', totalNuevos: 3 });
   notifier.postMarketingReport = async (message) => { messages.push(message); return { success: true }; };
+  marketingReport.generateFunnelHealthReport = async () => ({ success: true, data: 'Todo en orden', counts: { vencidos: 0, estancados: 0, pagoAtrasado: 0, clientesSanos: 0 } });
+  notifier.postFunnelHealthReport = async (message) => { messages.push(message); return { success: true }; };
 });
 
 test('ejecuta las cuatro operaciones CRM y las notifica', async () => {
@@ -72,6 +74,20 @@ test('genera el resumen semanal de marketing sin pedir aprobación', async () =>
 test('un fallo al generar el resumen de marketing se notifica como error', async () => {
   marketingReport.generateWeeklyMarketingReport = async () => ({ success: false, error: 'Lion Platform caído' });
   const result = await ejecutarAccionCRM({ tipo: 'informe_marketing', datos: {} });
+  assert.equal(result.success, false);
+  assert.match(messages[0], /Lion Platform caído/);
+});
+
+test('genera las acciones de mejora del embudo sin pedir aprobación', async () => {
+  process.env.AUTO_APPROVE_ACTIONS = 'false';
+  const result = await ejecutarAccionCRM({ tipo: 'acciones_embudo', datos: {} });
+  assert.equal(result.success, true);
+  assert.equal(messages[0], 'Todo en orden');
+});
+
+test('un fallo al generar las acciones del embudo se notifica como error', async () => {
+  marketingReport.generateFunnelHealthReport = async () => ({ success: false, error: 'Lion Platform caído' });
+  const result = await ejecutarAccionCRM({ tipo: 'acciones_embudo', datos: {} });
   assert.equal(result.success, false);
   assert.match(messages[0], /Lion Platform caído/);
 });
