@@ -38,3 +38,15 @@ jobs:
           HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
           AUTO_APPROVE_ACTIONS: 'true'
         run: node scripts/runAgent.js "dame el resumen semanal de canales" --auto
+
+      - name: Generar y publicar las acciones de mejora del embudo
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+          LION_EMAIL: ${{ secrets.LION_EMAIL }}
+          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
+          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
+          AUTO_APPROVE_ACTIONS: 'true'
+        run: node scripts/runAgent.js "dame las acciones de mejora del embudo de esta semana" --auto

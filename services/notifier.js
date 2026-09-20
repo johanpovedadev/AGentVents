@@ -25,4 +25,9 @@ async function postMarketingReport(report) {
   return broadcast(`:chart_with_upwards_trend: Resumen semanal de canales\n${report}`);
 }
 
-module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport };
+/** Publica las acciones de mejora del embudo (captación y retención) de la semana, en ambos canales. */
+async function postFunnelHealthReport(report) {
+  return broadcast(`:mag: Acciones de mejora del embudo esta semana\n${report}`);
+}
+
+module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport, postFunnelHealthReport };
