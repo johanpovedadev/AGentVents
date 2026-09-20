@@ -12,7 +12,9 @@ async function parseIntent(message) {
 
   try {
     const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = gemini.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+    // Alias "latest" en vez de una versión fija — evita que el intérprete se
+    // rompa cada vez que Google retira un modelo (pasó con gemini-1.5-flash).
+    const model = gemini.getGenerativeModel({ model: 'gemini-flash-latest', generationConfig: { responseMimeType: 'application/json' } });
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim().replace(/^```json\s*|\s*```$/g, '');
     const intencion = JSON.parse(text);
