@@ -30,4 +30,9 @@ async function postFunnelHealthReport(report) {
   return broadcast(`:mag: Acciones de mejora del embudo esta semana\n${report}`);
 }
 
-module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport, postFunnelHealthReport };
+/** Publica el resultado diario de publicar contenido programado del calendario, en ambos canales. */
+async function postScheduledContentReport(report) {
+  return broadcast(`:calendar: Calendario de contenido — publicación automática de hoy\n${report}`);
+}
+
+module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport, postFunnelHealthReport, postScheduledContentReport };

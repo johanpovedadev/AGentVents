@@ -1,0 +1,39 @@
+name: Publicar contenido programado del calendario
+
+on:
+  workflow_dispatch:
+  # 08:00 en Bogotá (UTC-5), todos los días.
+  schedule:
+    - cron: '0 13 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Publicar posts vencidos del calendario de contenido
+        env:
+          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+          LION_EMAIL: ${{ secrets.LION_EMAIL }}
+          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
+          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+        run: node scripts/publishScheduledContent.js
