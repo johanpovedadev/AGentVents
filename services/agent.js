@@ -1,11 +1,16 @@
-const hubspotClient = require('./hubspotClient');
 const lionPlatformClient = require('./lionPlatformClient');
 const marketingReportService = require('./marketingReportService');
 const metaPublisher = require('./metaPublisher');
 const notifier = require('./notifier');
-const reportService = require('./reportService');
+const salesReportService = require('./salesReportService');
+const socialReportService = require('./social/socialReportService');
 
-const ACTION_TYPES = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto', 'publicar_post'];
+/**
+ * Intenciones que cambian algo afuera (crean un registro o publican). Estas
+ * esperan aprobación humana salvo que el modo autónomo esté activo. Los
+ * informes solo leen datos, así que corren directo.
+ */
+const ACTION_TYPES = ['crear_prospecto', 'publicar_post'];
 
 /** Convierte los datos de la intención en texto legible para una aprobación humana. */
 function formatActionData(datos) {
@@ -23,29 +28,17 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
   let result;
   let description;
   switch (intencion.tipo) {
-    case 'crear_contacto':
-      result = await hubspotClient.createContact(intencion.datos);
-      description = 'Contacto creado';
-      break;
-    case 'crear_deal':
-      result = await hubspotClient.createDeal(intencion.datos);
-      description = 'Deal creado';
-      break;
-    case 'actualizar_deal':
-      result = await hubspotClient.updateDealStage(intencion.datos.dealId, intencion.datos.dealstage);
-      description = 'Etapa del deal actualizada';
-      break;
-    case 'actualizar_contacto':
-      result = await hubspotClient.updateContact(intencion.datos.contactId, intencion.datos.propiedades);
-      description = 'Contacto actualizado';
-      break;
-    case 'generar_informe':
-      result = await reportService.generateSalesReport();
-      description = 'Informe de ventas generado';
+    case 'crear_prospecto':
+      result = await lionPlatformClient.createProspect(intencion.datos);
+      description = 'Prospecto creado en Lion Platform';
       break;
     case 'publicar_post':
       result = await metaPublisher.publish(intencion.datos.canal, intencion.datos);
       description = `Post publicado en ${intencion.datos.canal}`;
+      break;
+    case 'generar_informe':
+      result = await salesReportService.generateSalesReport();
+      description = 'Informe de ventas generado';
       break;
     case 'informe_marketing':
       result = await marketingReportService.generateWeeklyMarketingReport();
@@ -55,12 +48,16 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
       result = await marketingReportService.generateFunnelHealthReport();
       description = 'Acciones de mejora del embudo generadas';
       break;
+    case 'informe_redes':
+      result = await socialReportService.generateSocialReport(intencion.datos);
+      description = 'Informe de redes generado';
+      break;
     default:
       result = { success: false, error: `Tipo de intención no soportado: ${intencion.tipo}.` };
   }
 
   if (!result.success) {
-    await notifier.broadcast(`:x: Error al ${description || 'procesar la acción'}: ${result.error}`);
+    await notifier.broadcast(`❌ Error al ${description || 'procesar la acción'}: ${result.error}`);
     return result;
   }
 
@@ -70,37 +67,27 @@ async function ejecutarAccionAprobada(intencion, automatico = false) {
     await notifier.postMarketingReport(result.data);
   } else if (intencion.tipo === 'acciones_embudo') {
     await notifier.postFunnelHealthReport(result.data);
+  } else if (intencion.tipo === 'informe_redes') {
+    await notifier.postSocialReport(result.data);
   } else {
-    // Solo crear_contacto tiene un equivalente directo en Lion Platform (un
-    // prospecto). Los deals no existen en ese modelo y actualizar_contacto no
-    // tiene forma de saber a qué prospecto corresponde un contactId de
-    // HubSpot, así que esos dos tipos siguen viviendo solo en HubSpot.
-    let lionNote = '';
-    if (intencion.tipo === 'crear_contacto') {
-      const lionResult = await lionPlatformClient.createProspect(intencion.datos);
-      lionNote = lionResult.success
-        ? '\n🦁 Espejado en Lion Platform: prospecto creado.'
-        : `\n⚠️ No se pudo espejar en Lion Platform: ${lionResult.error}`;
-    }
-
     const recordId = result.data && result.data.id ? ` (ID: ${result.data.id})` : '';
     const autonomyNote = automatico ? '\n✅ Ejecutado automáticamente (modo autónomo activo)' : '';
-    await notifier.broadcast(`:white_check_mark: ${description}${recordId}. Datos: ${formatActionData(intencion.datos)}${autonomyNote}${lionNote}`);
+    await notifier.broadcast(`✅ ${description}${recordId}. Datos:\n${formatActionData(intencion.datos)}${autonomyNote}`);
   }
   return result;
 }
 
-/** Ejecuta una intención CRM y deja trazabilidad en Slack y Telegram. */
-async function ejecutarAccionCRM(intencion) {
+/** Punto de entrada del agente de redes y ventas: valida, pide aprobación si toca, y ejecuta. */
+async function ejecutarAccion(intencion) {
   if (!intencion || !intencion.tipo || !intencion.datos) {
     const error = 'La intención debe incluir tipo y datos.';
-    await notifier.broadcast(`:x: Error del agente CRM: ${error}`);
+    await notifier.broadcast(`❌ Error del agente: ${error}`);
     return { success: false, error };
   }
 
   const automatico = process.env.AUTO_APPROVE_ACTIONS === 'true';
   if (ACTION_TYPES.includes(intencion.tipo) && !automatico) {
-    await notifier.broadcast(`⏸️ *Acción pendiente de aprobación*\nTipo: ${intencion.tipo}\nDatos:\n${formatActionData(intencion.datos)}\n\nResponde 'aprobar' en este hilo para ejecutar, o 'rechazar' para descartar.`);
+    await notifier.broadcast(`⏸️ Acción pendiente de aprobación\nTipo: ${intencion.tipo}\nDatos:\n${formatActionData(intencion.datos)}\n\nResponde 'aprobar' para ejecutar o 'rechazar' para descartar.`);
     return { estado: 'pendiente_aprobacion', intencion };
   }
 
@@ -115,4 +102,4 @@ async function aprobarAccionPendiente(intencion) {
   return ejecutarAccionAprobada(intencion, false);
 }
 
-module.exports = { ejecutarAccionCRM, aprobarAccionPendiente };
+module.exports = { ejecutarAccion, aprobarAccionPendiente, ACTION_TYPES };

@@ -20,19 +20,18 @@ require.cache[geminiPath] = {
   }
 };
 
-const hubspotPath = require.resolve('../services/hubspotClient');
-const hubspot = require(hubspotPath);
-hubspot.getDeals = async () => ({ success: true, data: { results: [{ id: '1' }] } });
-delete require.cache[require.resolve('../services/reportService')];
+const lionPlatform = require('../services/lionPlatformClient');
+lionPlatform.listProspects = async () => ({ success: true, data: [{ businessName: 'Heladería', stage: 'DEMO_AGENDADA', phone: '300' }, { businessName: 'Sin etapa' }] });
+delete require.cache[require.resolve('../services/salesReportService')];
 delete require.cache[require.resolve('../services/intentParser')];
-const { generateSalesReport } = require('../services/reportService');
+const { generateSalesReport, countByStage } = require('../services/salesReportService');
 const { parseIntent } = require('../services/intentParser');
 
 test('parseIntent devuelve una intención Gemini válida', async () => {
   process.env.GEMINI_API_KEY = 'clave';
-  nextText = '```json\n{"tipo":"crear_contacto","datos":{"firstname":"Ana"}}\n```';
+  nextText = '```json\n{"tipo":"crear_prospecto","datos":{"nombre":"Ana"}}\n```';
   const result = await parseIntent('crea Ana');
-  assert.equal(result.data.tipo, 'crear_contacto');
+  assert.equal(result.data.tipo, 'crear_prospecto');
 });
 
 test('parseIntent acepta publicar_post como tipo válido', async () => {
@@ -62,11 +61,32 @@ test('parseIntent valida texto, clave, JSON y estructura', async () => {
   assert.match((await parseIntent('hola')).error, /estructura/);
 });
 
-test('generateSalesReport usa deals y maneja errores de Gemini', async () => {
+test('parseIntent acepta informe_redes y rechaza los tipos viejos de HubSpot', async () => {
+  process.env.GEMINI_API_KEY = 'clave';
+  nextText = '{"tipo":"informe_redes","datos":{"dias":7}}';
+  assert.equal((await parseIntent('informe de redes')).data.tipo, 'informe_redes');
+  nextText = '{"tipo":"crear_deal","datos":{}}';
+  assert.match((await parseIntent('crea un deal')).error, /estructura/);
+});
+
+test('generateSalesReport usa los prospectos de Lion Platform y maneja errores', async () => {
   process.env.GEMINI_API_KEY = 'clave';
   nextText = 'Diagnóstico útil';
-  assert.equal((await generateSalesReport()).data, 'Diagnóstico útil');
+  const ok = await generateSalesReport();
+  assert.equal(ok.data, 'Diagnóstico útil');
+  assert.deepEqual(ok.porEtapa, { DEMO_AGENDADA: 1, SIN_ETAPA: 1 });
   shouldFail = true;
   assert.match((await generateSalesReport()).error, /Gemini no disponible/);
   shouldFail = false;
+  delete process.env.GEMINI_API_KEY;
+  assert.match((await generateSalesReport()).error, /GEMINI_API_KEY/);
+  lionPlatform.listProspects = async () => ({ success: false, error: 'Lion caído' });
+  assert.equal((await generateSalesReport()).error, 'Lion caído');
+  lionPlatform.listProspects = async () => ({ success: true, data: null });
+  process.env.GEMINI_API_KEY = 'clave';
+  assert.deepEqual((await generateSalesReport()).porEtapa, {});
+});
+
+test('countByStage agrupa por etapa', () => {
+  assert.deepEqual(countByStage([{ stage: 'A' }, { stage: 'A' }, {}]), { A: 2, SIN_ETAPA: 1 });
 });

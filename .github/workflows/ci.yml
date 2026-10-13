@@ -1,0 +1,27 @@
+name: Pruebas
+
+# Gitflow: toda rama feature/* entra a develop por PR, y develop entra a main
+# por PR. Las pruebas deben pasar antes de unir cualquiera de las dos.
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instalar dependencias
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Pruebas con cobertura mínima de 80 %
+        run: pnpm test
