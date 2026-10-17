@@ -16,6 +16,7 @@ Agente Node.js (CommonJS, Node 22) de Lion Platform para redes sociales y ventas
 6. **Acciones que cambian algo afuera** (crear, publicar) piden aprobación salvo `AUTO_APPROVE_ACTIONS=true`.
 7. **Migraciones**: archivo nuevo en `migrations/NNN_nombre.sql`; nunca editar uno ya aplicado.
 8. **Secretos**: solo en `.env` local o GitHub Secrets. Nunca en el código ni en los commits.
+9. **Puertos libres antes de arrancar (regla del 17 oct 2026, todos los proyectos).** Todo servicio que escuche en un puerto, como el webhook o panel de redes en el 3100, primero se registra en el registro único `config/ports.json` del repo saas-bot y se valida con `node scripts/check-ports.js --new <puerto>`. Nunca se deja corriendo en PM2 a mano desde una rama de trabajo: va en el `ecosystem.config.js` de saas-bot (límite de reinicios) y se arranca con `npm run start:safe -- <app>`. Origen: `agentes-redes` apuntaba a `scripts/runRedes.js` de la rama `feature/agente-redes-sociales`. Al cambiar de rama el archivo desapareció, PM2 lo reinició unos 3,5 millones de veces y terminó tumbando a todos los bots.
 
 ## Gitflow
 
