@@ -5,7 +5,8 @@
   "main": "services/crmAgent.js",
   "scripts": {
     "start": "node scripts/runAgent.js",
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80"
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80",
+    "test:social-bot": "npm --prefix social-bot test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
