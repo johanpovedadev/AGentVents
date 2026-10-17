@@ -1,0 +1,12 @@
+[
+  {
+    "keyword": "precio",
+    "commentReply": "¡Gracias por tu interés! 😊 Te escribimos por mensaje directo con toda la info.",
+    "dmMessage": "¡Hola! 👋 Vimos tu comentario preguntando por precios. Contanos qué te interesa y te ayudamos con gusto."
+  },
+  {
+    "keyword": "info",
+    "commentReply": "¡Con gusto! 😊 Ya te escribimos por interno.",
+    "dmMessage": "¡Hola! 👋 Gracias por tu interés. ¿En qué te podemos ayudar?"
+  }
+]

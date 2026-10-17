@@ -1,0 +1,16 @@
+{
+  "name": "social-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bot de redes sociales (Instagram/Facebook) - responde comentarios y mensajes directos, y envia un DM automatico cuando alguien comenta una palabra clave.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test_trigger_rules.js && node test_webhook.js && node test_puerto_ocupado.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2"
+  }
+}
