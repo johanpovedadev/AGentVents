@@ -40,7 +40,7 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 GEMINI_API_KEY=tu-api-key
 AUTO_APPROVE_ACTIONS=false
 
-# Notificaciones por Telegram (bot Jarvis León / LionTelegram), en paralelo a Slack.
+# Notificaciones por Telegram (bot Jarvis León / LionTelegram): canal gratuito; basta con él si no usas Slack.
 HERMES_BOT_TOKEN=tu_token_de_botfather
 HERMES_CHAT_ID=tu_chat_id
 
