@@ -69,4 +69,17 @@ async function listProspects() {
   return lionRequest('/prospects');
 }
 
-module.exports = { createProspect, listProspects };
+/** Lista todos los posts del calendario de contenido del tenant autenticado. */
+async function listContentPosts() {
+  return lionRequest('/content-posts');
+}
+
+/** Actualiza un post del calendario de contenido (ej. tras publicarlo). */
+async function updateContentPost(contentPostId, datos) {
+  return lionRequest(`/content-posts/${contentPostId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(datos)
+  });
+}
+
+module.exports = { createProspect, listProspects, listContentPosts, updateContentPost };

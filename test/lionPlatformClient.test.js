@@ -55,6 +55,30 @@ test('listProspects devuelve el listado del tenant autenticado', async () => {
   assert.deepEqual(result, { success: true, data: [{ id: '1', source: 'INSTAGRAM' }] });
 });
 
+test('listContentPosts devuelve el calendario de contenido del tenant autenticado', async () => {
+  const client = freshClient();
+  global.fetch = async (url) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 'jwt' }) };
+    assert.ok(url.endsWith('/content-posts'));
+    return { ok: true, status: 200, json: async () => ([{ id: '1', platform: 'FACEBOOK' }]) };
+  };
+  const result = await client.listContentPosts();
+  assert.deepEqual(result, { success: true, data: [{ id: '1', platform: 'FACEBOOK' }] });
+});
+
+test('updateContentPost envía un PATCH con los datos al post indicado', async () => {
+  const client = freshClient();
+  global.fetch = async (url, options) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 'jwt' }) };
+    assert.ok(url.endsWith('/content-posts/7'));
+    assert.equal(options.method, 'PATCH');
+    assert.deepEqual(JSON.parse(options.body), { status: 'PUBLISHED', externalUrl: 'https://www.facebook.com/1' });
+    return { ok: true, status: 200, json: async () => ({ id: '7', status: 'PUBLISHED' }) };
+  };
+  const result = await client.updateContentPost('7', { status: 'PUBLISHED', externalUrl: 'https://www.facebook.com/1' });
+  assert.deepEqual(result, { success: true, data: { id: '7', status: 'PUBLISHED' } });
+});
+
 test('createProspect reporta un error de Lion Platform tras loguearse', async () => {
   const client = freshClient();
   global.fetch = async (url) => {
