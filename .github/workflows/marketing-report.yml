@@ -1,11 +1,9 @@
 name: Informes semanales de ventas y redes
 
 on:
-  # Permite ejecutar los informes desde la pestaña Actions cuando se necesite.
+  # Solo a mano. Lo programado corre en el PC (PM2, ecosystem.config.js de
+  # saas-bot): Lion Platform vive en localhost y desde aquí no se alcanza.
   workflow_dispatch:
-  # 08:00 en Bogotá (UTC-5), los lunes.
-  schedule:
-    - cron: '0 13 * * 1'
 
 permissions:
   contents: read

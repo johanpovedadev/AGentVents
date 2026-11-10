@@ -48,12 +48,25 @@ node scripts/runAgent.js "crea un prospecto Heladería Mundo, 3001234567, llegó
 
 `--auto` en `runAgent.js` activa el modo autónomo solo para esa ejecución.
 
+## Informes programados (en el PC)
+
+Lion Platform corre en el PC (`localhost:8081`), así que los informes del CRM se
+programan ahí con PM2, en el `ecosystem.config.js` de saas-bot (nunca a mano):
+
+| App de PM2 | Cuándo (Bogotá) | Qué manda a Telegram |
+|---|---|---|
+| `agentvents-seguimientos` | Lunes a sábado 07:45 | Seguimientos vencidos, estancados, pagos atrasados, pedir reseña |
+| `agentvents-ventas` | Lunes 08:10 | Diagnóstico de ventas del embudo |
+| `agentvents-marketing` | Lunes 08:20 | Prospectos nuevos por canal |
+
+A mano: `node scripts/runScheduledReport.js seguimientos|ventas|marketing`.
+
 ## Automatizaciones (GitHub Actions)
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
 | `social-collect.yml` | Diario 01:17 Bogotá | Migraciones + recolección de redes (solo tenants con SOCIAL) |
-| `marketing-report.yml` | Lunes 08:00 Bogotá | Informes de canales, embudo, ventas y redes por Telegram |
+| `marketing-report.yml` | Solo a mano | Informes por Telegram (lo programado corre en el PC) |
 | `ci.yml` | Cada PR y push a `develop`/`main` | Pruebas con cobertura mínima del 80 % |
 
 ## Documentación
