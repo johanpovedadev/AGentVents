@@ -2,13 +2,23 @@ require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-/** Convierte lenguaje natural en la intención estructurada que consume el agente CRM. */
+const VALID_TYPES = ['crear_prospecto', 'publicar_post', 'generar_informe', 'informe_marketing', 'acciones_embudo', 'informe_redes'];
+
+/** Convierte lenguaje natural en la intención estructurada que consume el agente de redes y ventas. */
 async function parseIntent(message) {
   if (!message || !message.trim()) return { success: false, error: 'Debes indicar una instrucción para el agente.' };
   if (!process.env.GEMINI_API_KEY) return { success: false, error: 'Falta la variable de entorno GEMINI_API_KEY.' };
 
-  const schema = '{"tipo":"crear_contacto|crear_deal|actualizar_deal|actualizar_contacto|generar_informe|publicar_post|informe_marketing|acciones_embudo","datos":{}}';
-  const prompt = `Convierte esta instrucción CRM al siguiente JSON exacto: ${schema}. Responde SOLO JSON válido, sin Markdown ni explicación. Para crear_deal usa contactId si está disponible; para actualizar_deal usa dealId y dealstage; para actualizar_contacto usa contactId y propiedades; para publicar_post usa canal ('facebook' o 'instagram'), texto y, si aplica, enlace (Facebook) o imagenUrl (Instagram con una sola imagen) o imagenes (arreglo de 2 a 10 URLs, para un carrusel de Instagram); informe_marketing no lleva datos, es el resumen semanal de prospectos nuevos por canal en Lion Platform; acciones_embudo no lleva datos, son las acciones de mejora del embudo de esta semana para conseguir y mantener clientes (seguimientos vencidos, prospectos estancados, pagos atrasados, clientes a los que pedir reseña). Instrucción: ${message}`;
+  const schema = `{"tipo":"${VALID_TYPES.join('|')}","datos":{}}`;
+  const prompt = `Convierte esta instrucción al siguiente JSON exacto: ${schema}. Responde SOLO JSON válido, sin Markdown ni explicación.
+Reglas por tipo:
+- crear_prospecto: datos {nombre, telefono, fuente} — fuente es una de GOOGLE_MAPS, INSTAGRAM, FACEBOOK, REFERIDO, MARKETPLACE, VISITA_PRESENCIAL, OTRO.
+- publicar_post: datos {canal ('facebook' o 'instagram'), texto} y, si aplica, enlace (Facebook), imagenUrl (Instagram con una imagen) o imagenes (arreglo de 2 a 10 URLs para un carrusel de Instagram).
+- generar_informe: sin datos; es el diagnóstico de ventas del embudo en Lion Platform.
+- informe_marketing: sin datos; resumen semanal de prospectos nuevos por canal.
+- acciones_embudo: sin datos; acciones de mejora del embudo de esta semana (seguimientos vencidos, estancados, pagos atrasados, pedir reseña).
+- informe_redes: datos opcionales {dias} (por defecto 7); ganadores de redes propias y de la competencia, crecimiento de seguidores.
+Instrucción: ${message}`;
 
   try {
     const gemini = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -18,8 +28,7 @@ async function parseIntent(message) {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim().replace(/^```json\s*|\s*```$/g, '');
     const intencion = JSON.parse(text);
-    const validTypes = ['crear_contacto', 'crear_deal', 'actualizar_deal', 'actualizar_contacto', 'generar_informe', 'publicar_post', 'informe_marketing', 'acciones_embudo'];
-    if (!validTypes.includes(intencion.tipo) || !intencion.datos || typeof intencion.datos !== 'object') {
+    if (!VALID_TYPES.includes(intencion.tipo) || !intencion.datos || typeof intencion.datos !== 'object') {
       return { success: false, error: 'Gemini devolvió una intención con una estructura no válida.' };
     }
     return { success: true, data: intencion };
@@ -28,4 +37,4 @@ async function parseIntent(message) {
   }
 }
 
-module.exports = { parseIntent };
+module.exports = { parseIntent, VALID_TYPES };

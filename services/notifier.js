@@ -1,33 +1,38 @@
-const slackNotifier = require('./slackNotifier');
 const telegramNotifier = require('./telegramNotifier');
 
-/** Publica el mismo texto en Slack y Telegram; un canal caído no bloquea al otro. */
+/**
+ * Único canal de avisos: Telegram (bot Jarvis León). Slack se retiró junto con
+ * lo del hackathon. Se conserva esta capa para que el resto del agente no sepa
+ * por qué canal sale cada mensaje — agregar WhatsApp después no toca a nadie más.
+ */
 async function broadcast(message) {
-  const [slack, telegram] = await Promise.all([
-    slackNotifier.postToSlack(message),
-    telegramNotifier.postToTelegram(message)
-  ]);
-  return { success: slack.success || telegram.success, slack, telegram };
+  const telegram = await telegramNotifier.postToTelegram(message);
+  return { success: telegram.success, telegram };
 }
 
-/** Notifica que una gestión necesita intervención humana, en ambos canales. */
+/** Notifica que una gestión necesita intervención humana. */
 async function notifyHandoff(message) {
-  return broadcast(`:rotating_light: Requiere intervención humana: ${message}\n\n🕐 Detección instantánea — un humano revisando manualmente esta conversación habría tardado varios minutos en notarlo.`);
+  return broadcast(`🚨 Requiere intervención humana: ${message}`);
 }
 
-/** Publica un informe generado y cuantifica el tiempo que ahorró el agente, en ambos canales. */
+/** Publica el diagnóstico de ventas y cuánto tardó el agente en armarlo. */
 async function postReport(report, elapsedSeconds = 0) {
-  return broadcast(`:bar_chart: Informe de ventas\n${report}\n\n⏱️ Esto le tomaría a un gerente de ventas ~45 min revisando el CRM manualmente. El agente lo hizo en ${elapsedSeconds} segundos.`);
+  return broadcast(`📊 Informe de ventas\n${report}\n\n⏱️ Generado en ${elapsedSeconds} s.`);
 }
 
-/** Publica el resumen semanal de prospectos nuevos por canal, en ambos canales. */
+/** Publica el resumen semanal de prospectos nuevos por canal. */
 async function postMarketingReport(report) {
-  return broadcast(`:chart_with_upwards_trend: Resumen semanal de canales\n${report}`);
+  return broadcast(`📈 Resumen semanal de canales\n${report}`);
 }
 
-/** Publica las acciones de mejora del embudo (captación y retención) de la semana, en ambos canales. */
+/** Publica las acciones de mejora del embudo (captación y retención) de la semana. */
 async function postFunnelHealthReport(report) {
-  return broadcast(`:mag: Acciones de mejora del embudo esta semana\n${report}`);
+  return broadcast(`🔎 Acciones de mejora del embudo esta semana\n${report}`);
 }
 
-module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport, postFunnelHealthReport };
+/** Publica el informe de redes sociales (ganadores, competencia, seguidores). */
+async function postSocialReport(report) {
+  return broadcast(`🎬 Informe de redes\n${report}`);
+}
+
+module.exports = { broadcast, notifyHandoff, postReport, postMarketingReport, postFunnelHealthReport, postSocialReport };

@@ -1,7 +1,7 @@
-name: Resumen semanal de marketing
+name: Informes semanales de ventas y redes
 
 on:
-  # Permite ejecutar el resumen desde la pestaña Actions cuando se necesite.
+  # Permite ejecutar los informes desde la pestaña Actions cuando se necesite.
   workflow_dispatch:
   # 08:00 en Bogotá (UTC-5), los lunes.
   schedule:
@@ -11,8 +11,18 @@ permissions:
   contents: read
 
 jobs:
-  generar-resumen:
+  generar-informes:
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+      LION_EMAIL: ${{ secrets.LION_EMAIL }}
+      LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+      HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
+      HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SOCIAL_TENANT_ID: ${{ secrets.SOCIAL_TENANT_ID }}
+      AUTO_APPROVE_ACTIONS: 'true'
     steps:
       - name: Descargar código
         uses: actions/checkout@v4
@@ -20,33 +30,21 @@ jobs:
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Instalar dependencias
         run: |
           corepack enable
           pnpm install --frozen-lockfile
 
-      - name: Generar y publicar el resumen semanal de canales
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
-          LION_EMAIL: ${{ secrets.LION_EMAIL }}
-          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
-          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
-          AUTO_APPROVE_ACTIONS: 'true'
+      - name: Resumen semanal de canales
         run: node scripts/runAgent.js "dame el resumen semanal de canales" --auto
 
-      - name: Generar y publicar las acciones de mejora del embudo
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
-          LION_EMAIL: ${{ secrets.LION_EMAIL }}
-          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
-          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
-          AUTO_APPROVE_ACTIONS: 'true'
+      - name: Acciones de mejora del embudo
         run: node scripts/runAgent.js "dame las acciones de mejora del embudo de esta semana" --auto
+
+      - name: Diagnóstico de ventas
+        run: node scripts/runAgent.js "genera el informe de ventas" --auto
+
+      - name: Informe de redes
+        run: node scripts/runAgent.js "dame el informe de redes de esta semana" --auto

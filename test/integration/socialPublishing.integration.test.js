@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 
 /**
  * Prueba global: ejercita el flujo completo instrucción → intención → aprobación →
- * publicación → notificación, encadenando los módulos reales (intentParser, crmAgent,
+ * publicación → notificación, encadenando los módulos reales (intentParser, agent,
  * metaPublisher, notifier) y falseando solo la frontera externa real: el SDK de
- * Gemini y las llamadas de red (Graph API, Slack, Telegram). Las pruebas unitarias
+ * Gemini y las llamadas de red (Graph API, Telegram). Las pruebas unitarias
  * de cada servicio ya cubren sus ramas de error por separado; esta prueba confirma
  * que, cableados entre sí, el resultado de punta a punta es el esperado.
  */
@@ -29,21 +29,19 @@ process.env.GEMINI_API_KEY = 'clave-de-prueba';
 process.env.FB_PAGE_ID = '111';
 process.env.FB_PAGE_ACCESS_TOKEN = 'token-fb';
 process.env.IG_BUSINESS_ACCOUNT_ID = '999';
-process.env.SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/test';
 process.env.HERMES_BOT_TOKEN = 'bot-token';
 process.env.HERMES_CHAT_ID = 'chat-1';
 
 for (const modulePath of [
   '../../services/intentParser',
-  '../../services/crmAgent',
+  '../../services/agent',
   '../../services/metaPublisher',
   '../../services/notifier',
-  '../../services/slackNotifier',
   '../../services/telegramNotifier'
 ]) delete require.cache[require.resolve(modulePath)];
 
 const { parseIntent } = require('../../services/intentParser');
-const { ejecutarAccionCRM, aprobarAccionPendiente } = require('../../services/crmAgent');
+const { ejecutarAccion, aprobarAccionPendiente } = require('../../services/agent');
 
 /** Enruta cada fetch al backend correspondiente según la URL, como lo haría la red real. */
 function routedFetch(requests) {
@@ -52,13 +50,12 @@ function routedFetch(requests) {
     if (url.endsWith('/111/feed')) return { ok: true, status: 200, json: async () => ({ id: '111_555' }) };
     if (url.endsWith('/999/media')) return { ok: true, status: 200, json: async () => ({ id: 'container-1' }) };
     if (url.endsWith('/999/media_publish')) return { ok: true, status: 200, json: async () => ({ id: 'post-1' }) };
-    if (url.startsWith('https://hooks.slack.com')) return { ok: true, status: 200, json: async () => ({}) };
     if (url.includes('api.telegram.org')) return { ok: true, status: 200, json: async () => ({}) };
     throw new Error(`URL inesperada en la prueba de integración: ${url}`);
   };
 }
 
-test('flujo completo: instrucción en lenguaje natural publica en Facebook tras aprobación y notifica a Slack y Telegram', async () => {
+test('flujo completo: instrucción en lenguaje natural publica en Facebook tras aprobación y notifica por Telegram', async () => {
   process.env.AUTO_APPROVE_ACTIONS = 'false';
   const requests = [];
   global.fetch = routedFetch(requests);
@@ -67,9 +64,8 @@ test('flujo completo: instrucción en lenguaje natural publica en Facebook tras 
   const parsed = await parseIntent('publica en facebook que automatizamos WhatsApp con IA, enlaza lioncore.co');
   assert.equal(parsed.success, true);
 
-  const pending = await ejecutarAccionCRM(parsed.data);
+  const pending = await ejecutarAccion(parsed.data);
   assert.equal(pending.estado, 'pendiente_aprobacion');
-  assert.ok(requests.some((r) => r.url.startsWith('https://hooks.slack.com')), 'debe avisar la pendiente de aprobación por Slack');
   assert.ok(requests.some((r) => r.url.includes('api.telegram.org')), 'debe avisar la pendiente de aprobación por Telegram');
   assert.ok(!requests.some((r) => r.url.endsWith('/111/feed')), 'no debe publicar antes de la aprobación humana');
 
@@ -91,12 +87,12 @@ test('flujo completo: modo autónomo publica en Instagram sin esperar aprobació
   const parsed = await parseIntent('publica en instagram la demo del bot con la imagen https://cdn.example.com/demo.jpg');
   assert.equal(parsed.success, true);
 
-  const result = await ejecutarAccionCRM(parsed.data);
+  const result = await ejecutarAccion(parsed.data);
   assert.equal(result.success, true);
   assert.equal(result.data.id, 'post-1');
   assert.ok(requests.some((r) => r.url.endsWith('/999/media')), 'debe crear el contenedor de medios');
   assert.ok(requests.some((r) => r.url.endsWith('/999/media_publish')), 'debe publicar el contenedor');
-  assert.ok(requests.some((r) => r.url.startsWith('https://hooks.slack.com')), 'debe confirmar la publicación por Slack');
+  assert.ok(requests.some((r) => r.url.includes('api.telegram.org')), 'debe confirmar la publicación por Telegram');
 });
 
 test('flujo completo: modo autónomo publica un carrusel de Instagram con varias imágenes', async () => {
@@ -108,7 +104,7 @@ test('flujo completo: modo autónomo publica un carrusel de Instagram con varias
   const parsed = await parseIntent('publica un carrusel en instagram con estas tres imágenes');
   assert.equal(parsed.success, true);
 
-  const result = await ejecutarAccionCRM(parsed.data);
+  const result = await ejecutarAccion(parsed.data);
   assert.equal(result.success, true);
   assert.equal(result.data.id, 'post-1');
 
@@ -124,10 +120,10 @@ test('flujo completo: un canal no soportado se notifica como error sin llamar a 
 
   nextGeminiText = '{"tipo":"publicar_post","datos":{"canal":"tiktok","texto":"no soportado"}}';
   const parsed = await parseIntent('publica en tiktok algo');
-  const result = await ejecutarAccionCRM(parsed.data);
+  const result = await ejecutarAccion(parsed.data);
 
   assert.equal(result.success, false);
   assert.match(result.error, /Canal no soportado/);
   assert.ok(!requests.some((r) => r.url.includes('graph.facebook.com')), 'no debe tocar la Graph API para un canal inválido');
-  assert.ok(requests.some((r) => r.url.startsWith('https://hooks.slack.com')), 'debe notificar el error por Slack');
+  assert.ok(requests.some((r) => r.url.includes('api.telegram.org')), 'debe notificar el error por Telegram');
 });
