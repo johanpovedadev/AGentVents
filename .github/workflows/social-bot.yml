@@ -1,0 +1,20 @@
+name: social-bot
+on:
+  pull_request:
+    paths: ['social-bot/**', '.github/workflows/social-bot.yml']
+  push:
+    branches: [develop, main]
+    paths: ['social-bot/**']
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: social-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
