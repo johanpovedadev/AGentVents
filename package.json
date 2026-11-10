@@ -1,14 +1,18 @@
 {
-  "name": "hubspot-crm-agent",
-  "version": "1.0.0",
-  "description": "Agente autónomo para operaciones CRM en HubSpot",
-  "main": "services/crmAgent.js",
+  "name": "lion-agente-redes-ventas",
+  "version": "2.0.0",
+  "description": "Agente de redes y ventas de Lion Platform: analítica de redes propia y de la competencia, informes de ventas y publicación, multi-tenant con licencias por producto.",
+  "main": "services/agent.js",
   "scripts": {
     "start": "node scripts/runAgent.js",
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80"
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80",
+    "migrate": "node scripts/migrate.js",
+    "collect": "node scripts/collectSocial.js",
+    "add-account": "node scripts/addAccount.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "pg": "^8.23.1"
   }
 }

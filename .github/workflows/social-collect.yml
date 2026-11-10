@@ -1,0 +1,55 @@
+name: Recolector diario de redes
+
+on:
+  # Botón "Run workflow" para correrlo a mano desde la pestaña Actions.
+  workflow_dispatch:
+  # 06:17 UTC = 01:17 en Bogotá (UTC-5), todos los días. Minuto :17 y no :00
+  # porque GitHub retrasa más las ejecuciones programadas en punto.
+  schedule:
+    - cron: '17 6 * * *'
+
+permissions:
+  contents: read
+
+# Nunca dos recolecciones a la vez (por ejemplo, la programada y una manual).
+concurrency:
+  group: social-collect
+  cancel-in-progress: false
+
+jobs:
+  recolectar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Aplicar migraciones pendientes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/migrate.js
+
+      - name: Recolectar métricas (solo tenants con licencia SOCIAL)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+          LION_EMAIL: ${{ secrets.LION_EMAIL }}
+          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+          META_GRAPH_BASE_URL: ${{ secrets.META_GRAPH_BASE_URL }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
+          IG_BUSINESS_ACCOUNT_ID: ${{ secrets.IG_BUSINESS_ACCOUNT_ID }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          HERMES_BOT_TOKEN: ${{ secrets.HERMES_BOT_TOKEN }}
+          HERMES_CHAT_ID: ${{ secrets.HERMES_CHAT_ID }}
+        run: node scripts/collectSocial.js

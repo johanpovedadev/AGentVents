@@ -1,20 +1,20 @@
 require('dotenv').config();
 
 const { parseIntent } = require('../services/intentParser');
-const { ejecutarAccionCRM } = require('../services/crmAgent');
+const { ejecutarAccion } = require('../services/agent');
 
-/** Ejecuta la demostración de extremo a extremo desde la línea de comandos. */
+/** Ejecuta una instrucción en lenguaje natural de punta a punta desde la línea de comandos. */
 async function main() {
   const args = process.argv.slice(2);
   const autoApprove = args.includes('--auto');
   const message = args.filter((arg) => arg !== '--auto').join(' ').trim();
   if (!message) {
-    console.error('Uso: node scripts/runAgent.js "crea un contacto para María López, teléfono 3001234567"');
+    console.error('Uso: node scripts/runAgent.js "dame el informe de redes de esta semana"');
     process.exitCode = 1;
     return;
   }
 
-  // Permite alternar al modo autónomo durante la demo sin editar el archivo .env.
+  // Permite activar el modo autónomo para una sola ejecución sin editar el .env.
   if (autoApprove) process.env.AUTO_APPROVE_ACTIONS = 'true';
 
   const parsed = await parseIntent(message);
@@ -25,9 +25,9 @@ async function main() {
   }
 
   console.log('Intención detectada:', JSON.stringify(parsed.data, null, 2));
-  const result = await ejecutarAccionCRM(parsed.data);
+  const result = await ejecutarAccion(parsed.data);
   if (result.estado === 'pendiente_aprobacion') {
-    console.log('Acción pendiente de aprobación. Revisa el mensaje enviado a Slack.');
+    console.log('Acción pendiente de aprobación. Revisa el mensaje enviado a Telegram.');
     return;
   }
   if (!result.success) {

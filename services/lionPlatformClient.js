@@ -47,19 +47,28 @@ async function lionRequest(path, options = {}) {
   }
 }
 
-/** Crea un prospecto a partir de los mismos datos usados para un contacto de HubSpot. */
+// Fuentes que acepta Lion Platform para un prospecto (enum del backend).
+const VALID_SOURCES = new Set(['GOOGLE_MAPS', 'INSTAGRAM', 'FACEBOOK', 'REFERIDO', 'MARKETPLACE', 'VISITA_PRESENCIAL', 'OTRO']);
+
+/**
+ * Crea un prospecto en Lion Platform. `nombre` es el negocio o la persona;
+ * `fuente` es el canal de donde llegó (INSTAGRAM, FACEBOOK…). Una fuente que
+ * el backend no conoce se guarda como OTRO en vez de fallar.
+ */
 async function createProspect(datos) {
-  const businessName = [datos && datos.firstname, datos && datos.lastname].filter(Boolean).join(' ').trim()
-    || (datos && datos.phone) || '';
+  const nombre = (datos && datos.nombre ? String(datos.nombre) : '').trim();
+  const telefono = datos && datos.telefono ? String(datos.telefono) : undefined;
+  const businessName = nombre || telefono || '';
   if (!businessName) {
-    return { success: false, error: 'Se requiere firstname, lastname o phone para crear el prospecto.' };
+    return { success: false, error: 'Se requiere nombre o telefono para crear el prospecto.' };
   }
+  const fuente = datos && datos.fuente ? String(datos.fuente).toUpperCase() : 'OTRO';
   return lionRequest('/prospects', {
     method: 'POST',
     body: JSON.stringify({
       businessName,
-      phone: datos && datos.phone,
-      source: 'OTRO'
+      phone: telefono,
+      source: VALID_SOURCES.has(fuente) ? fuente : 'OTRO'
     })
   });
 }
@@ -69,4 +78,13 @@ async function listProspects() {
   return lionRequest('/prospects');
 }
 
-module.exports = { createProspect, listProspects };
+/**
+ * Lista todos los tenants con sus productos licenciados. Solo SUPER_ADMIN puede
+ * llamar /admin/tenants — el agente inicia sesión con esa cuenta para poder
+ * verificar licencias de todos los clientes.
+ */
+async function listTenants() {
+  return lionRequest('/admin/tenants');
+}
+
+module.exports = { createProspect, listProspects, listTenants };
