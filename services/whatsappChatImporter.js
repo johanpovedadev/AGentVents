@@ -8,7 +8,8 @@
  *     "chats": [{ "nombre": "Kate", "telefono": "573214497185", "fuente": "OTRO",
  *                 "etiqueta": "blog", "resumen": "Termales de Chipaque, 3 adultos y 3 niños",
  *                 "temperatura": "WARM", "siguientePaso": "Mandar opciones con niños",
- *                 "fechaSeguimiento": "2026-11-16",
+ *                 "fechaSeguimiento": "2026-11-16", "nota": "opcional: queda en el historial",
+ *                 "etiquetas": ["opcional", "se suman a las que ya tenga"],
  *                 "mensajes": [{ "direction": "INBOUND", "body": "Hola...", "sentAt": "2026-11-10T16:35:00Z" }] }] }
  *
  * Por cada chat: si ya hay un prospecto con ese teléfono lo actualiza (mensajes y
@@ -63,6 +64,7 @@ async function importChats(chats, client) {
       continue;
     }
     let prospect = byPhone.get(key);
+    const wasExisting = Boolean(prospect);
     if (!prospect) {
       const created = await client.createProspect({
         nombre: nombre || chat.telefono,
@@ -93,7 +95,23 @@ async function importChats(chats, client) {
       const next = await client.updateNextAction(prospect.id, chat.siguientePaso || 'Hacer seguimiento por WhatsApp', chat.fechaSeguimiento);
       if (!next.success) result.errores.push(`${etiqueta} (seguimiento): ${next.error}`);
     }
-    if (String(chat.temperatura || '').toUpperCase() === 'HOT') result.calientes.push(etiqueta);
+    const id = prospect && prospect.id;
+    if (id !== undefined && chat.nota && client.addNote) {
+      const note = await client.addNote(id, chat.nota);
+      if (!note.success) result.errores.push(`${etiqueta} (nota): ${note.error}`);
+    }
+    if (id !== undefined && Array.isArray(chat.etiquetas) && chat.etiquetas.length && client.updateTags) {
+      const tags = [...new Set([...(prospect.tags || []), ...chat.etiquetas.map((x) => String(x).trim()).filter(Boolean)])];
+      const tagged = await client.updateTags(id, tags);
+      if (!tagged.success) result.errores.push(`${etiqueta} (etiquetas): ${tagged.error}`);
+    }
+    // Al crear, la temperatura ya va en el prospecto; en uno existente se actualiza aparte.
+    const temp = String(chat.temperatura || '').toUpperCase();
+    if (id !== undefined && wasExisting && ['HOT', 'WARM', 'COLD'].includes(temp) && client.updateTemperature) {
+      const t2 = await client.updateTemperature(id, temp);
+      if (!t2.success) result.errores.push(`${etiqueta} (temperatura): ${t2.error}`);
+    }
+    if (temp === 'HOT') result.calientes.push(etiqueta);
   }
   return result;
 }
