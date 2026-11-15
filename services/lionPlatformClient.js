@@ -114,4 +114,28 @@ async function listTenants() {
   return lionRequest('/admin/tenants');
 }
 
-module.exports = { createProspect, listProspects, listTenants, recordMessages, updateNextAction };
+/** Deja una nota en el historial del prospecto (ej. "No quiere bot; paga si le recuperan la cuenta"). */
+async function addNote(prospectId, description) {
+  return lionRequest(`/prospects/${encodeURIComponent(prospectId)}/activities`, {
+    method: 'POST',
+    body: JSON.stringify({ description: String(description).slice(0, 1000) })
+  });
+}
+
+/** Reemplaza las etiquetas del prospecto (el importador manda las que ya tenía más las nuevas). */
+async function updateTags(prospectId, tags) {
+  return lionRequest(`/prospects/${encodeURIComponent(prospectId)}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify({ tags })
+  });
+}
+
+/** Cambia la temperatura (HOT, WARM, COLD). */
+async function updateTemperature(prospectId, temperature) {
+  return lionRequest(`/prospects/${encodeURIComponent(prospectId)}/temperature`, {
+    method: 'PATCH',
+    body: JSON.stringify({ temperature })
+  });
+}
+
+module.exports = { createProspect, listProspects, listTenants, recordMessages, updateNextAction, addNote, updateTags, updateTemperature };
