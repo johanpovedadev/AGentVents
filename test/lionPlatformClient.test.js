@@ -119,3 +119,22 @@ test('recordMessages y updateNextAction llaman a sus rutas', async () => {
   assert.equal(calls[1].method, 'PATCH');
   assert.deepEqual(calls[1].body, { nextStep: 'Llamar', nextActionDate: '2026-11-16' });
 });
+
+test('addNote, updateTags y updateTemperature llaman a sus rutas', async () => {
+  const client = freshClient();
+  const calls = [];
+  global.fetch = async (url, options) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 't' }) };
+    calls.push({ url, method: options.method, body: JSON.parse(options.body) });
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  await client.addNote(3, 'No quiere bot');
+  await client.updateTags(3, ['a', 'b']);
+  await client.updateTemperature(3, 'HOT');
+  assert.match(calls[0].url, /\/prospects\/3\/activities$/);
+  assert.deepEqual(calls[0].body, { description: 'No quiere bot' });
+  assert.equal(calls[1].method, 'PATCH');
+  assert.deepEqual(calls[1].body, { tags: ['a', 'b'] });
+  assert.match(calls[2].url, /\/temperature$/);
+  assert.deepEqual(calls[2].body, { temperature: 'HOT' });
+});

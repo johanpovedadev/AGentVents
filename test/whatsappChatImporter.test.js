@@ -101,3 +101,34 @@ test('formatSummary: nuevos, actualizados, calientes y problemas', () => {
   assert.match(text, /1 con problema/);
   assert.doesNotMatch(formatSummary({ creados: [], actualizados: [], calientes: [], errores: [] }), /Calientes|problema/);
 });
+
+test('nota, etiquetas (sumadas a las que tenía) y temperatura en un prospecto existente', async () => {
+  const calls = { note: [], tags: [], temp: [] };
+  const client = fakeClient([{ id: 9, phone: '573202235442', tags: ['api-whatsapp'] }], {
+    addNote: async (id, d) => { calls.note.push({ id, d }); return { success: true }; },
+    updateTags: async (id, t) => { calls.tags.push({ id, t }); return { success: true }; },
+    updateTemperature: async (id, t) => { calls.temp.push({ id, t }); return { success: true }; }
+  });
+  await importChats([{ nombre: 'Javier', telefono: '3202235442', nota: 'No quiere bot', etiquetas: ['no-quiere-bot', 'api-whatsapp'], temperatura: 'hot' }], client);
+  assert.deepEqual(calls.note, [{ id: 9, d: 'No quiere bot' }]);
+  assert.deepEqual(calls.tags, [{ id: 9, t: ['api-whatsapp', 'no-quiere-bot'] }]);
+  assert.deepEqual(calls.temp, [{ id: 9, t: 'HOT' }]);
+});
+
+test('en uno nuevo no cambia la temperatura aparte; si nota o etiquetas fallan, lo reporta', async () => {
+  const calls = { temp: 0 };
+  const client = fakeClient([], {
+    addNote: async () => ({ success: false, error: 'n' }),
+    updateTags: async () => ({ success: false, error: 't' }),
+    updateTemperature: async () => { calls.temp++; return { success: false, error: 'x' }; }
+  });
+  const r = await importChats([{ nombre: 'Ana', telefono: '3001112233', nota: 'x', etiquetas: ['a'], temperatura: 'WARM' }], client);
+  assert.equal(calls.temp, 0);
+  assert.equal(r.errores.length, 2);
+});
+
+test('existente con temperatura que falla: lo reporta', async () => {
+  const client = fakeClient([{ id: 1, phone: '3001112233' }], { updateTemperature: async () => ({ success: false, error: 'x' }) });
+  const r = await importChats([{ nombre: 'Ana', telefono: '3001112233', temperatura: 'COLD' }], client);
+  assert.match(r.errores[0], /temperatura/);
+});
