@@ -63,13 +63,40 @@ async function createProspect(datos) {
     return { success: false, error: 'Se requiere nombre o telefono para crear el prospecto.' };
   }
   const fuente = datos && datos.fuente ? String(datos.fuente).toUpperCase() : 'OTRO';
-  return lionRequest('/prospects', {
+  const payload = {
+    businessName,
+    phone: telefono,
+    source: VALID_SOURCES.has(fuente) ? fuente : 'OTRO'
+  };
+  // Opcionales (los usa el importador de chats de WhatsApp). Solo se mandan si vienen.
+  if (datos.resumen) payload.priorityReason = String(datos.resumen).slice(0, 500);
+  if (datos.canal) payload.contactChannel = String(datos.canal);
+  if (datos.siguientePaso) payload.nextStep = String(datos.siguientePaso).slice(0, 500);
+  if (datos.ciudad) payload.city = String(datos.ciudad);
+  const temperatura = datos.temperatura ? String(datos.temperatura).toUpperCase() : '';
+  if (VALID_TEMPERATURES.has(temperatura)) payload.temperature = temperatura;
+  return lionRequest('/prospects', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+const VALID_TEMPERATURES = new Set(['HOT', 'WARM', 'COLD']);
+
+/**
+ * Guarda un tramo de la conversación del prospecto. Lion Platform descarta los
+ * mensajes repetidos, así que se puede reenviar el mismo tramo sin duplicar.
+ * @param {Array<{direction:'INBOUND'|'OUTBOUND', body:string, sentAt:string}>} messages
+ */
+async function recordMessages(prospectId, messages) {
+  return lionRequest(`/prospects/${encodeURIComponent(prospectId)}/messages`, {
     method: 'POST',
-    body: JSON.stringify({
-      businessName,
-      phone: telefono,
-      source: VALID_SOURCES.has(fuente) ? fuente : 'OTRO'
-    })
+    body: JSON.stringify({ messages })
+  });
+}
+
+/** Pone el próximo paso y su fecha (YYYY-MM-DD): es lo que sale en "seguimientos vencidos". */
+async function updateNextAction(prospectId, nextStep, nextActionDate) {
+  return lionRequest(`/prospects/${encodeURIComponent(prospectId)}/next-action`, {
+    method: 'PATCH',
+    body: JSON.stringify({ nextStep, nextActionDate })
   });
 }
 
@@ -87,4 +114,4 @@ async function listTenants() {
   return lionRequest('/admin/tenants');
 }
 
-module.exports = { createProspect, listProspects, listTenants };
+module.exports = { createProspect, listProspects, listTenants, recordMessages, updateNextAction };
