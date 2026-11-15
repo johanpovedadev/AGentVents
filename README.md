@@ -61,6 +61,14 @@ programan ahí con PM2, en el `ecosystem.config.js` de saas-bot (nunca a mano):
 
 A mano: `node scripts/runScheduledReport.js seguimientos|ventas|marketing`.
 
+### Chats de WhatsApp → Lion Platform
+
+Una tarea programada de Claude lee los chats de clientes en el WhatsApp Web de Johan (su Chrome, sin programas
+no oficiales vinculados al número) y deja un JSON en `data/chats_entrantes/` (git lo ignora). La app de PM2
+`agentvents-importar-chats` corre `scripts/importWhatsappChats.js` cada 15 minutos: crea o actualiza cada
+prospecto por teléfono (sin duplicar), guarda los mensajes y el próximo seguimiento, mueve el archivo a
+`procesados/` y avisa por Telegram. Formato en `services/whatsappChatImporter.js`.
+
 ## Automatizaciones (GitHub Actions)
 
 | Workflow | Cuándo | Qué hace |

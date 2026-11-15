@@ -87,3 +87,35 @@ test('listTenants consulta los tenants con sus productos (solo SUPER_ADMIN)', as
   const result = await client.listTenants();
   assert.equal(result.data[0].products[1], 'SOCIAL');
 });
+
+test('createProspect manda los campos opcionales del importador de chats', async () => {
+  const client = freshClient();
+  let body;
+  global.fetch = async (url, options) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 't' }) };
+    body = JSON.parse(options.body);
+    return { ok: true, status: 201, json: async () => ({ id: 1 }) };
+  };
+  await client.createProspect({ nombre: 'Kate', telefono: '57321', fuente: 'otro', canal: 'WHATSAPP', resumen: 'Termales', siguientePaso: 'Escribir', ciudad: 'Bogotá', temperatura: 'warm' });
+  assert.deepEqual(body, { businessName: 'Kate', phone: '57321', source: 'OTRO', priorityReason: 'Termales', contactChannel: 'WHATSAPP', nextStep: 'Escribir', city: 'Bogotá', temperature: 'WARM' });
+  await client.createProspect({ nombre: 'Ana', temperatura: 'tibio' });
+  assert.equal(body.temperature, undefined, 'una temperatura desconocida no se manda');
+});
+
+test('recordMessages y updateNextAction llaman a sus rutas', async () => {
+  const client = freshClient();
+  const calls = [];
+  global.fetch = async (url, options) => {
+    if (url.endsWith('/auth/login')) return { ok: true, status: 200, json: async () => ({ token: 't' }) };
+    calls.push({ url, method: options.method, body: JSON.parse(options.body) });
+    return { ok: true, status: 200, json: async () => ({ saved: 1 }) };
+  };
+  await client.recordMessages(7, [{ direction: 'INBOUND', body: 'hola', sentAt: '2026-11-10T16:35:00.000Z' }]);
+  await client.updateNextAction(7, 'Llamar', '2026-11-16');
+  assert.match(calls[0].url, /\/prospects\/7\/messages$/);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].body.messages.length, 1);
+  assert.match(calls[1].url, /\/prospects\/7\/next-action$/);
+  assert.equal(calls[1].method, 'PATCH');
+  assert.deepEqual(calls[1].body, { nextStep: 'Llamar', nextActionDate: '2026-11-16' });
+});
