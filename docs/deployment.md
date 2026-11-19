@@ -39,8 +39,12 @@ Todo el agente funciona hoy sin servidor propio: GitHub Actions lo corre por hor
 | `GEMINI_API_KEY` | Intenciones y diagnóstico de ventas |
 | `HERMES_BOT_TOKEN`, `HERMES_CHAT_ID` | Avisos por Telegram |
 | `FB_PAGE_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`, `META_GRAPH_BASE_URL`, `IG_ACCESS_TOKEN` (opcional) | Instagram |
+| `FB_PAGE_ID` | Escucha de mensajes: id de la página de Facebook (el token de página debe tener `pages_messaging`, `pages_read_engagement` e `instagram_manage_messages`) |
+| `SOCIAL_INBOX_TENANT_ID` (opcional) | Tenant dueño de la cuenta conectada, si hay más de una cuenta propia de Instagram registrada |
 | `YOUTUBE_API_KEY` | YouTube |
 | `SOCIAL_TENANT_ID` | Tenant del informe semanal de redes |
+
+Si faltan `DATABASE_URL` o los de Lion Platform, el recolector y la escucha **no fallan**: quedan en pausa con un aviso amarillo en el resumen de la corrida (antes fallaban todos los días).
 
 Secretos que ya no se usan y se pueden borrar: `HUBSPOT_ACCESS_TOKEN`, `SLACK_WEBHOOK_URL`.
 

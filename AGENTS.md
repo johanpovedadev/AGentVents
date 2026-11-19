@@ -44,11 +44,13 @@ services/
     connectors/          instagram.js, youtube.js (misma interfaz: fetchAccount)
     analytics.js         funciones puras: mediana, score atípico, cuadrantes
     collector.js         recolector diario
+    inboxCollector.js    escucha de mensajes (Instagram Direct y Messenger) → social.message y Lion Platform
+    connectors/metaInbox.js  conversaciones de la página vía Graph API
     accountService.js    registrar cuentas
     socialReportService.js
     db.js                Postgres (Neon)
 migrations/              SQL del esquema social
-scripts/                 CLI: runAgent, migrate, collectSocial, addAccount
+scripts/                 CLI: runAgent, migrate, collectSocial, collectMessages, addAccount
 ```
 
 ## Agregar una red nueva

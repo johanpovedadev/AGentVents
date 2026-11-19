@@ -8,6 +8,7 @@
     "test": "node --test --experimental-test-coverage --test-coverage-lines=80 --test-coverage-functions=80 --test-coverage-branches=80",
     "migrate": "node scripts/migrate.js",
     "collect": "node scripts/collectSocial.js",
+    "inbox": "node scripts/collectMessages.js",
     "add-account": "node scripts/addAccount.js"
   },
   "dependencies": {
