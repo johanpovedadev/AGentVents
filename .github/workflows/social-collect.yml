@@ -21,25 +21,53 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Sin base de datos no hay nada que recolectar: en vez de fallar (cruz roja
+      # y correo todos los días) se avisa en el resumen y se salta la corrida.
+      - name: Revisar secretos
+        id: secretos
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}
+          LION_EMAIL: ${{ secrets.LION_EMAIL }}
+          LION_PASSWORD: ${{ secrets.LION_PASSWORD }}
+        run: |
+          faltan=""
+          for v in DATABASE_URL LION_PLATFORM_BASE_URL LION_EMAIL LION_PASSWORD; do
+            [ -n "${!v}" ] || faltan="$faltan $v"
+          done
+          if [ -n "$faltan" ]; then
+            echo "::warning::Recolector en pausa: faltan los secretos$faltan (Settings > Secrets and variables > Actions)."
+            echo "### ⏸️ Recolector en pausa" >> "$GITHUB_STEP_SUMMARY"
+            echo "Faltan los secretos:$faltan" >> "$GITHUB_STEP_SUMMARY"
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Descargar código
+        if: steps.secretos.outputs.listo == 'true'
         uses: actions/checkout@v4
 
       - name: Configurar Node.js
+        if: steps.secretos.outputs.listo == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Instalar dependencias
+        if: steps.secretos.outputs.listo == 'true'
         run: |
           corepack enable
           pnpm install --frozen-lockfile
 
       - name: Aplicar migraciones pendientes
+        if: steps.secretos.outputs.listo == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: node scripts/migrate.js
 
       - name: Recolectar métricas (solo tenants con licencia SOCIAL)
+        if: steps.secretos.outputs.listo == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           LION_PLATFORM_BASE_URL: ${{ secrets.LION_PLATFORM_BASE_URL }}

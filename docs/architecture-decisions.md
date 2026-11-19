@@ -47,3 +47,13 @@ Cuando una decisión cambie no se edita el ADR viejo: se agrega uno nuevo que lo
 ## ADR-007: Telegram como único canal de avisos
 
 **Decisión:** se retira Slack. `notifier.js` se mantiene como capa para que agregar WhatsApp después no toque al resto del código.
+
+## ADR-008: Escucha de mensajes de redes por consulta cada 2 horas (Graph API)
+
+**Contexto:** Johan, 19 nov 2026: "necesitamos escuchar también los mensajes de redes". Los mensajes directos de Instagram y Messenger son prospectos que hoy se quedan fuera de Lion Platform.
+
+**Opciones:** (1) webhook de Meta en un servidor 24/7 (tiempo real, pero exige servidor público y revisión de la app); (2) consultar `/{page-id}/conversations` cada 2 horas desde GitHub Actions (elegida para empezar).
+
+**Decisión:** opción 2. Usa la misma infraestructura de ADR-004, solo APIs oficiales (ADR-005) y no necesita servidor. Los mensajes se guardan en `social.message` (idempotente por id de Meta). Si el tenant tiene licencia `CRM`, cada conversación nueva crea o actualiza un prospecto en Lion Platform, identificado por la etiqueta `ig:<id>` o `fb:<id>`. Telegram solo avisa cuando llegan mensajes nuevos sin responder o algo falla.
+
+**Consecuencia:** hasta 2 horas de demora. Igual que ADR-006, por ahora solo funciona para la página y cuenta conectadas de Johan. Cuando el servidor 24/7 esté listo se puede pasar a webhook sin cambiar la tabla ni el paso al CRM.
