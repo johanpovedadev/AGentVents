@@ -63,3 +63,26 @@ El agente necesita que `lion-platform-api` responda para verificar licencias.
 ## 4. Túnel para lo que corre en vivo (fase 4)
 
 El chat por Telegram y el webhook de comentarios de Instagram necesitan un proceso encendido con URL pública. El plan es exponerlo con Cloudflare Tunnel, igual que los bots, desde el servidor 24/7 (tu PC u Oracle). El webhook de Meta exige una URL fija, así que hace falta un túnel con nombre y dominio propio en Cloudflare; el túnel rápido (`trycloudflare.com`) cambia de URL en cada reinicio.
+
+## 5. Servidor de Oracle (actual, desde nov 2026)
+
+Los informes y las tareas de redes corren en el servidor de Oracle junto al CRM, igual que Leo y la heladería. Las claves salen del `.env` del PC: **no hace falta cargarlas en GitHub**.
+
+1. Doble clic en `scripts\windows\mudar_agentvents_oracle.bat` (PC). Empaca el código y el `.env`, lo sube y corre `deploy/oracle/instalar_agentvents.sh`.
+2. En el servidor el `.env` se ajusta solo:
+   - `DATABASE_URL` → Postgres del CRM en el mismo servidor (`127.0.0.1:5432/lionplatform`, esquema `social`).
+   - `LION_PLATFORM_BASE_URL` → `http://127.0.0.1:8081/api/v1` (por dentro, sin salir a internet).
+3. PM2 corre cada tarea a su hora (`deploy/oracle/ecosystem.oracle.config.js`, hora de Bogotá):
+
+| Tarea | Hora | Antes |
+|---|---|---|
+| `agentvents-seguimientos` | lun–sáb 7:45 | PM2 del PC |
+| `agentvents-ventas` | lunes 8:10 | PM2 del PC |
+| `agentvents-marketing` | lunes 8:20 | PM2 del PC |
+| `agentvents-redes-metricas` | diario 1:17 | GitHub Actions (`social-collect.yml`) |
+| `agentvents-redes-mensajes` | cada 2 h | GitHub Actions (`social-inbox.yml`) |
+
+4. El importador de chats de WhatsApp (`agentvents-importar-chats`) **se queda en el PC**: lee los archivos de `data\chats_entrantes` de ese PC y habla con el CRM por su URL pública.
+5. Para cambiar una clave: se edita el `.env` del PC y se vuelve a correr el `.bat` (es idempotente; la versión anterior queda en `~/agentvents.anterior`).
+
+Los flujos `social-collect.yml` y `social-inbox.yml` de GitHub Actions quedan deshabilitados para no correr dos veces.
