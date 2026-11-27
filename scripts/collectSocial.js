@@ -2,18 +2,19 @@ require('dotenv').config();
 
 const { collect, formatSummary } = require('../services/social/collector');
 const notifier = require('../services/notifier');
+const { realErrors } = require('../services/social/inboxCollector');
 const db = require('../services/social/db');
 
 /**
- * Corrida diaria del recolector (GitHub Actions con cron). Solo avisa por
- * Telegram si algo falló o se omitió, para no llenar el chat todos los días.
+ * Corrida diaria del recolector (PM2 en Oracle, en la mañana). Solo avisa por Telegram si algo falló de verdad:
+ * las cuentas omitidas o sin conectar todavía no avisan (Johan, 27 nov 2026: sin redes conectadas, nada).
  */
 async function main() {
   const result = await collect();
   const text = formatSummary(result);
   console.log(text);
   const s = result.summary;
-  if (!result.success || s.errores.length > 0 || s.omitidas.length > 0) {
+  if (!result.success || realErrors(s.errores.map((e) => e.error)).length > 0) {
     await notifier.broadcast(`${result.success ? '⚠️' : '❌'} ${text}`);
   }
   if (!result.success) process.exitCode = 1;

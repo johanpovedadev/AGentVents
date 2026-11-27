@@ -25,3 +25,14 @@ test('postToTelegram maneja configuración, respuesta y red inválidas', async (
   global.fetch = async () => { throw new Error('caído'); };
   assert.match((await notifier.postToTelegram('hola')).error, /caído/);
 });
+
+test('los mensajes largos (plan con 18 contactos) se parten en varios de menos de 4096', () => {
+  const { splitMessage } = require('../services/telegramNotifier');
+  const long = Array.from({ length: 30 }, (_, i) => `${i}. Negocio\n   💬 ${'x'.repeat(180)}`).join('\n\n');
+  const parts = splitMessage(long);
+  assert.ok(parts.length > 1);
+  assert.ok(parts.every((p) => p.length <= 4000));
+  assert.equal(parts.join('\n\n'), long, 'no se pierde nada');
+  assert.deepEqual(splitMessage('corto'), ['corto']);
+  assert.ok(splitMessage('y'.repeat(9000)).every((p) => p.length <= 4000));
+});

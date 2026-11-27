@@ -59,7 +59,7 @@ test('formatPlan: numerado, icono, vencido, próximo paso, mensaje y enlace', ()
 });
 
 test('generateFollowUpPlan: arma el plan o reporta el error de Lion Platform', async () => {
-  const ok = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: P }) }, { today: TODAY });
+  const ok = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: P }) }, { today: TODAY, newLimit: 0 });
   assert.equal(ok.success, true);
   assert.equal(ok.count, 4);
   const bad = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: false, error: 'caído' }) }, { today: TODAY });
@@ -87,4 +87,90 @@ test('los seguimientos de la mañana mandan también el plan; si el plan falla, 
   assert.match((await runScheduledReport('seguimientos', agent, { followUpPlan: async () => null })).error, /sin detalle/);
   await runScheduledReport('ventas', agent, { followUpPlan: async () => { calls++; return { success: true }; } });
   assert.equal(calls, 1, 'ventas no manda el plan');
+});
+
+// ---- Negocios nuevos y técnica "preguntar antes del precio" (Johan, 27 nov 2026) ----
+const memStore = (init = {}) => { const st = { data: { ...init }, saves: 0 }; return { st, load: () => st.data, save: (d) => { st.data = { ...d }; st.saves++; } }; };
+const NUEVOS = [
+  { id: 101, businessName: 'Heladería La 80', businessType: 'Heladería', phone: '+573001110001', stage: 'POR_CONTACTAR', googleRating: 4.5 },
+  { id: 102, businessName: 'Ferretería El Tornillo', businessType: 'Ferretería', phone: '3001110002', stage: 'POR_CONTACTAR', googleRating: 4.9 },
+  { id: 103, businessName: "Storia D'Amore Calle 93", businessType: 'Restaurante', phone: '3001110003', stage: 'POR_CONTACTAR', googleRating: 4.7 },
+  { id: 104, businessName: "Storia D'Amore Zona T", businessType: 'Restaurante italiano', phone: '3001110004', stage: 'POR_CONTACTAR', googleRating: 4.8 },
+  { id: 105, businessName: 'Panadería Fija', businessType: 'Panadería', phone: '6015551234', stage: 'POR_CONTACTAR', googleRating: 5 },
+  { id: 106, businessName: 'Ya contactado', businessType: 'Restaurante', phone: '3001110006', stage: 'POR_CONTACTAR', lastOutreachSentAt: '2026-11-23T20:00:00Z' },
+  { id: 107, businessName: 'Con seguimiento', businessType: 'Restaurante', phone: '3001110007', stage: 'POR_CONTACTAR', nextActionDate: '2026-12-01' },
+  { id: 108, businessName: 'Contactado', businessType: 'Restaurante', phone: '3001110008', stage: 'CONTACTADO' }
+];
+
+test('selectNew: comida primero, una sede por cadena, solo celulares, nunca contactados ni ya sugeridos', () => {
+  const picked = plan.selectNew(NUEVOS, { today: '2026-11-30' });
+  assert.deepEqual(picked.map((p) => p.id), [104, 101, 102], 'la cadena va una sola vez (la mejor calificada); el fijo no; los contactados no');
+  const again = plan.selectNew(NUEVOS, { today: '2026-11-30', suggested: { 104: '2026-11-28' } });
+  assert.deepEqual(again.map((p) => p.id), [103, 101, 102], 'si ya se sugirió hace poco, entra la otra sede');
+  const later = plan.selectNew(NUEVOS, { today: '2026-12-30', suggested: { 104: '2026-11-28' } });
+  assert.equal(later[0].id, 104, 'después de 3 semanas se puede volver a sugerir');
+  assert.deepEqual(plan.selectNew(NUEVOS, { today: '2026-11-30', limit: 1 }).map((p) => p.id), [104]);
+  assert.deepEqual(plan.selectNew(null, { today: '2026-11-30' }), []);
+  assert.equal(plan.mobile('6015551234'), '');
+  assert.equal(plan.mobile('3001110001'), '573001110001');
+});
+
+test('primer mensaje: IA simulada con la técnica de preguntas; sin IA, plantilla sin precio que termina en pregunta', async () => {
+  const prompts = [];
+  const ai = await plan.writeFirstMessages([NUEVOS[0], NUEVOS[1]], async (prompt) => {
+    prompts.push(prompt);
+    return prompt.includes('Ferretería') ? 'Hola, vale $39.000 al mes' : 'Hola Heladería La 80, soy Johan... ¿quién les contesta cuando están llenos?';
+  });
+  assert.equal(ai[0].fromAi, true);
+  assert.equal(ai[1].fromAi, false, 'si la IA mete un precio, se usa la plantilla');
+  assert.match(prompts[0], /sin precios/);
+  assert.match(prompts[0], /UNA pregunta sobre SU problema/);
+  assert.match(prompts[0], /nunca con "¿les muestro\?"/);
+  const tpl = await plan.writeFirstMessages(NUEVOS.slice(0, 4));
+  for (const { text } of tpl) {
+    assert.doesNotMatch(text, /\$|https?:/);
+    assert.match(text, /\?$/);
+    assert.match(text, /5 cupos de fundador/);
+  }
+  assert.equal(new Set(tpl.map((t) => t.text.split('.')[0])).size, 4, 'cada negocio con un saludo distinto');
+  const failing = await plan.writeFirstMessages([NUEVOS[0]], async () => { throw new Error('sin cuota'); });
+  assert.equal(failing[0].fromAi, false);
+});
+
+test('seguimientos: los nuevos van con preguntas; los que venían de antes, seguimiento normal', async () => {
+  assert.equal(plan.usesQuestions({ lastOutreachSentAt: '2026-11-27T14:00:00Z' }), true);
+  assert.equal(plan.usesQuestions({ lastOutreachSentAt: '2026-11-23T20:00:00Z' }), false);
+  assert.equal(plan.usesQuestions({}), false);
+  const prompts = [];
+  await plan.writeMessages([{ businessName: 'Nuevo', lastOutreachSentAt: '2026-11-28' }, { businessName: 'Viejo', lastOutreachSentAt: '2026-11-20' }], async (p) => { prompts.push(p); return 'ok'; });
+  assert.match(prompts[0], /PREGUNTAR ANTES DEL PRECIO/);
+  assert.match(prompts[0], /llamada de 15 minutos/);
+  assert.match(prompts[1], /Seguimiento normal/);
+});
+
+test('el plan trae los negocios nuevos con enlace, recuerda las 3 preguntas y guarda los sugeridos', async () => {
+  const store = memStore();
+  const res = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: [...P, ...NUEVOS] }) }, { today: '2026-11-30', store, newLimit: 2 });
+  assert.equal(res.success, true);
+  assert.equal(res.newCount, 2);
+  assert.match(res.data, /Plan de seguimiento 2026-11-30/);
+  assert.match(res.data, /🆕 2 negocios nuevos para hoy/);
+  assert.match(res.data, /1\. Storia D'Amore Zona T — Restaurante italiano · ⭐ 4\.8/);
+  assert.match(res.data, /📲 https:\/\/wa\.me\/573001110004\?text=/);
+  assert.match(res.data, /no des el precio todavía/);
+  assert.deepEqual(store.st.data, { 104: '2026-11-30', 101: '2026-11-30' });
+  const next = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: NUEVOS }) }, { today: '2026-12-01', store, newLimit: 2 });
+  assert.doesNotMatch(next.data, /Zona T/, 'al otro día no se repiten');
+  const none = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: [] }) }, { today: '2026-12-01', store: memStore() });
+  assert.match(none.data, /Ya no quedan negocios por contactar/);
+});
+
+test('fileStore guarda y lee el registro; si no existe, empieza vacío', () => {
+  const os = require('os');
+  const path = require('path');
+  const file = path.join(os.tmpdir(), `ventas_${process.pid}_${Date.now()}`, 'sugeridos.json');
+  const st = plan.fileStore(file);
+  assert.deepEqual(st.load(), {});
+  st.save({ 1: '2026-11-30' });
+  assert.deepEqual(st.load(), { 1: '2026-11-30' });
 });
