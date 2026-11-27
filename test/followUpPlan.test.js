@@ -146,6 +146,7 @@ test('seguimientos: los nuevos van con preguntas; los que venían de antes, segu
   assert.match(prompts[0], /PREGUNTAR ANTES DEL PRECIO/);
   assert.match(prompts[0], /llamada de 15 minutos/);
   assert.match(prompts[1], /Seguimiento normal/);
+  for (const p of prompts) assert.match(p, /ACUERDO concreto del siguiente paso/, 'regla de Johan: siempre llegar a acuerdos');
 });
 
 test('el plan trae los negocios nuevos con enlace, recuerda las 3 preguntas y guarda los sugeridos', async () => {
@@ -158,6 +159,7 @@ test('el plan trae los negocios nuevos con enlace, recuerda las 3 preguntas y gu
   assert.match(res.data, /1\. Storia D'Amore Zona T — Restaurante italiano · ⭐ 4\.8/);
   assert.match(res.data, /📲 https:\/\/wa\.me\/573001110004\?text=/);
   assert.match(res.data, /no des el precio todavía/);
+  assert.match(res.data, /🤝 Regla: cada conversación termina en un ACUERDO concreto/);
   assert.deepEqual(store.st.data, { 104: '2026-11-30', 101: '2026-11-30' });
   const next = await plan.generateFollowUpPlan({ listProspects: async () => ({ success: true, data: NUEVOS }) }, { today: '2026-12-01', store, newLimit: 2 });
   assert.doesNotMatch(next.data, /Zona T/, 'al otro día no se repiten');

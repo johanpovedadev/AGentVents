@@ -28,6 +28,9 @@ const DEFAULT_LIMIT = 8;
 const DEFAULT_NEW_LIMIT = 10;
 const TECHNIQUE_SINCE = '2026-11-27';
 const RESUGGEST_DAYS = 21;
+// Regla de Johan (27 nov 2026, "la idea sería siempre llegar a acuerdos, déjalo en reglas"): cada mensaje busca cerrar
+// un ACUERDO concreto del siguiente paso (qué hacemos y cuándo), no dejar la conversación abierta.
+const AGREEMENT_RULE = 'REGLA: busca siempre llegar a un ACUERDO concreto del siguiente paso (qué hacemos y cuándo): por ejemplo, ofrece dos opciones de día y hora, o "¿te parece si el jueves te mando el demo con tus productos?". Nunca dejes la conversación en "cualquier cosa me avisas".';
 const FOOD = /helad|restaur|comida|pana|caf[eé]|pastel|pizz|hambur|asad|postre|fruter|jugo|almuerz|piquete|reposter|sushi|pollo|pescad|mariscos|arepa|empanad|crepe|perro|burger|wok|parrill/i;
 
 function digits(phone) {
@@ -175,6 +178,7 @@ async function writeMessages(items, writer) {
         const prompt = [
           'Escribe UN mensaje corto de WhatsApp (máximo 3 líneas, español de Colombia, cercano y profesional) para retomar el contacto con este prospecto.',
           'Lo firma Johan de Service Store VIP (bots de WhatsApp con IA y tecnología). Termina con una pregunta concreta. Sin precios, sin inventar datos, sin comillas.',
+          AGREEMENT_RULE,
           technique,
           `Nombre: ${p.businessName}`,
           `Próximo paso acordado: ${p.nextStep || 'retomar la conversación'}`,
@@ -218,6 +222,7 @@ function formatNew(planned, today) {
   });
   lines.push('');
   lines.push('Si responden: no des el precio todavía. 1) ¿Qué quieres resolver? 2) ¿Para cuándo? 3) ¿Cuánto pensabas invertir al mes? (con rangos). Luego, llamada de 15 min.');
+  lines.push('🤝 Regla: cada conversación termina en un ACUERDO concreto (qué sigue y cuándo, con día y hora). Nada de "cualquier cosa me avisas".');
   return lines.join('\n');
 }
 
@@ -273,5 +278,5 @@ function todayBogota(now = new Date()) {
 
 module.exports = {
   generateFollowUpPlan, selectDue, writeMessages, formatPlan, templateMessage, waLink, digits, geminiWriter, todayBogota,
-  selectNew, writeFirstMessages, formatNew, firstTemplate, usesQuestions, chainKey, mobile, fileStore, TECHNIQUE_SINCE
+  selectNew, writeFirstMessages, formatNew, firstTemplate, usesQuestions, chainKey, mobile, fileStore, TECHNIQUE_SINCE, AGREEMENT_RULE
 };

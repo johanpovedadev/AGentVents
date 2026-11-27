@@ -55,7 +55,7 @@ programan ahí con PM2, en el `ecosystem.config.js` de saas-bot (nunca a mano):
 
 | App de PM2 | Cuándo (Bogotá) | Qué manda a Telegram |
 |---|---|---|
-| `agentvents-seguimientos` | Lunes a sábado 06:00 | Seguimientos vencidos, estancados, pagos atrasados, pedir reseña + **plan de ventas del día**: seguimientos y **10 negocios nuevos** con su mensaje (técnica *preguntar antes del precio*) y enlace wa.me para enviarlo desde el celular |
+| `agentvents-seguimientos` | Lunes a sábado 06:00 | Seguimientos vencidos, estancados, pagos atrasados, pedir reseña + **plan de ventas del día**: seguimientos y **10 negocios nuevos** con su mensaje (técnica *preguntar antes del precio* y la regla de **llegar siempre a un acuerdo** (qué sigue y cuándo)) y enlace wa.me para enviarlo desde el celular |
 | `agentvents-ventas` | Lunes 08:10 | Diagnóstico de ventas del embudo |
 | `agentvents-marketing` | Lunes 08:20 | Prospectos nuevos por canal |
 
