@@ -16,11 +16,11 @@ const base = {
 
 const tareas = [
   // Informes (antes en PM2 del PC)
-  { name: 'agentvents-seguimientos', script: 'scripts/runScheduledReport.js', args: 'seguimientos', cron_restart: '45 7 * * 1-6' },
+  { name: 'agentvents-seguimientos', script: 'scripts/runScheduledReport.js', args: 'seguimientos', cron_restart: '0 6 * * 1-6' },
   { name: 'agentvents-ventas', script: 'scripts/runScheduledReport.js', args: 'ventas', cron_restart: '10 8 * * 1' },
   { name: 'agentvents-marketing', script: 'scripts/runScheduledReport.js', args: 'marketing', cron_restart: '20 8 * * 1' },
   // Redes (antes en GitHub Actions: social-collect.yml y social-inbox.yml)
-  { name: 'agentvents-redes-metricas', script: 'scripts/collectSocial.js', cron_restart: '17 1 * * *' },
+  { name: 'agentvents-redes-metricas', script: 'scripts/collectSocial.js', cron_restart: '47 6 * * *' },
   { name: 'agentvents-redes-mensajes', script: 'scripts/collectMessages.js', cron_restart: '43 */2 * * *' },
 ];
 

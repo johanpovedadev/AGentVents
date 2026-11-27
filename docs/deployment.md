@@ -76,11 +76,11 @@ Los informes y las tareas de redes corren en el servidor de Oracle junto al CRM,
 
 | Tarea | Hora | Antes |
 |---|---|---|
-| `agentvents-seguimientos` | lun–sáb 7:45 | PM2 del PC |
+| `agentvents-seguimientos` | lun–sáb 6:00 (plan de ventas a Jarvis) | PM2 del PC |
 | `agentvents-ventas` | lunes 8:10 | PM2 del PC |
 | `agentvents-marketing` | lunes 8:20 | PM2 del PC |
-| `agentvents-redes-metricas` | diario 1:17 | GitHub Actions (`social-collect.yml`) |
-| `agentvents-redes-mensajes` | cada 2 h | GitHub Actions (`social-inbox.yml`) |
+| `agentvents-redes-metricas` | diario 6:47 (solo avisa fallas reales) | GitHub Actions (`social-collect.yml`) |
+| `agentvents-redes-mensajes` | cada 2 h (avisa solo mensajes nuevos; fallas, solo a las 7 a. m.; sin redes conectadas, nada) | GitHub Actions (`social-inbox.yml`) |
 
 4. El importador de chats de WhatsApp (`agentvents-importar-chats`) **se queda en el PC**: lee los archivos de `data\chats_entrantes` de ese PC y habla con el CRM por su URL pública.
 5. Para cambiar una clave: se edita el `.env` del PC y se vuelve a correr el `.bat` (es idempotente; la versión anterior queda en `~/agentvents.anterior`).

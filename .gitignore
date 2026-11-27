@@ -3,3 +3,6 @@ node_modules/
 
 # Chats de WhatsApp leídos por la tarea de Claude (datos personales): nunca al repo
 data/chats_entrantes/
+
+# Negocios ya sugeridos en el plan de ventas (estado del servidor)
+data/ventas_sugeridos.json

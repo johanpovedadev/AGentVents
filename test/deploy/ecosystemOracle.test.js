@@ -9,8 +9,9 @@ test('el servidor corre los 3 informes y las 2 tareas de redes, cada una a su ho
   assert.deepStrictEqual(Object.keys(byName).sort(), [
     'agentvents-marketing', 'agentvents-redes-mensajes', 'agentvents-redes-metricas', 'agentvents-seguimientos', 'agentvents-ventas',
   ]);
-  assert.strictEqual(byName['agentvents-seguimientos'].cron_restart, '45 7 * * 1-6');
+  assert.strictEqual(byName['agentvents-seguimientos'].cron_restart, '0 6 * * 1-6');
   assert.strictEqual(byName['agentvents-redes-mensajes'].cron_restart, '43 */2 * * *');
+  assert.strictEqual(byName['agentvents-redes-metricas'].cron_restart, '47 6 * * *', 'el resumen de redes va en la mañana');
 });
 
 test('cada tarea termina sola, en hora de Bogotá, y su script existe en el repo', () => {

@@ -194,9 +194,31 @@ function formatSummary(outcome) {
   return lines.join('\n');
 }
 
-/** ¿Vale la pena avisar? Solo si hay algo nuevo sin responder o algo falló. */
-function shouldNotify(outcome) {
-  return !outcome.success || outcome.result.sinResponder.length > 0 || outcome.result.errores.length > 0;
+/**
+ * Errores que solo dicen "esto no está conectado todavía" (faltan llaves de Meta, sin licencia, sin tenant):
+ * no son fallas, y mientras no haya redes conectadas no se avisa nada (Johan, 27 nov 2026).
+ */
+const NOT_CONFIGURED = /falta|sin licencia|SOCIAL_INBOX_TENANT_ID|sin conexi[oó]n|OAuth|sin bandeja/i;
+
+function realErrors(errores) {
+  return (errores || []).filter((e) => !NOT_CONFIGURED.test(String(e)));
 }
 
-module.exports = { collectMessages, formatSummary, shouldNotify, resolveTenant, contactTag, saveConversation };
+/** Hora (0-23) en Bogotá. */
+function hourBogota(now = new Date()) {
+  return new Date(now.getTime() - 5 * 3600000).getUTCHours();
+}
+
+/**
+ * ¿Vale la pena avisar? (Johan, 27 nov 2026: "dejarlo para por la mañana o cuando lleguen nuevos mensajes")
+ *  - Mensajes nuevos sin responder: siempre, apenas llegan.
+ *  - Fallas reales: solo en la corrida de la mañana (una vez al día), no cada 2 horas.
+ *  - "No está conectado todavía": nunca.
+ */
+function shouldNotify(outcome, now = new Date(), morningHour = Number(process.env.SOCIAL_REPORT_HOUR || 7)) {
+  if (outcome.result.sinResponder.length > 0) return true;
+  const failed = (!outcome.success && !NOT_CONFIGURED.test(String(outcome.error || ''))) || realErrors(outcome.result.errores).length > 0;
+  return failed && hourBogota(now) === morningHour;
+}
+
+module.exports = { collectMessages, formatSummary, shouldNotify, realErrors, hourBogota, resolveTenant, contactTag, saveConversation, NOT_CONFIGURED };

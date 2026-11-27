@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { collectMessages, formatSummary, shouldNotify, resolveTenant, contactTag } = require('../../services/social/inboxCollector');
+const { collectMessages, formatSummary, shouldNotify, realErrors, hourBogota, resolveTenant, contactTag } = require('../../services/social/inboxCollector');
 const { createFakeDb } = require('./fakeDb');
 
 function licenses(map) {
@@ -96,7 +96,10 @@ test('falla cerrado sin licencias y sin tenant; errores por red no frenan la otr
   let outcome = await collectMessages({ db, inbox: INBOX, crm: fakeCrm(), loadLicenses: async () => ({ success: false, error: 'API dormida' }) }, {});
   assert.equal(outcome.success, false);
   assert.equal(db.calls.at(-1).params[1], 'FAILED');
-  assert.equal(shouldNotify(outcome), true);
+  const MORNING = new Date('2026-11-27T12:43:00Z'); // 7:43 a. m. en Bogotá
+  const NOON = new Date('2026-11-27T17:43:00Z'); // 12:43 p. m.
+  assert.equal(shouldNotify(outcome, MORNING), true, 'una falla real se avisa en la corrida de la mañana');
+  assert.equal(shouldNotify(outcome, NOON), false, 'y no cada 2 horas');
 
   outcome = await collectMessages({ db: createFakeDb([[/SELECT DISTINCT tenant_id/, [{ tenant_id: 1 }, { tenant_id: 2 }]]]), inbox: INBOX, crm: fakeCrm(), loadLicenses: licenses({ 1: ['SOCIAL'] }) }, {});
   assert.equal(outcome.success, false);
@@ -109,6 +112,21 @@ test('falla cerrado sin licencias y sin tenant; errores por red no frenan la otr
   assert.deepEqual(outcome.result.errores, ['facebook: falta pages_messaging']);
   assert.equal(outcome.result.sinResponder.length, 1);
   assert.equal(db2.calls.at(-1).params[1], 'PARTIAL');
+  assert.equal(shouldNotify(outcome, new Date('2026-11-27T17:43:00Z')), true, 'mensaje nuevo sin responder: se avisa a cualquier hora');
+});
+
+test('sin redes conectadas no llega nada (Johan, 27 nov 2026); fallas reales solo en la mañana', () => {
+  const MORNING = new Date('2026-11-27T12:43:00Z');
+  const empty = (errores, extra = {}) => ({ success: true, ...extra, result: { sinResponder: [], errores } });
+  const sinLlaves = empty(['instagram: Faltan FB_PAGE_ACCESS_TOKEN o FB_PAGE_ID para leer los mensajes de redes.', 'facebook: Faltan FB_PAGE_ACCESS_TOKEN o FB_PAGE_ID para leer los mensajes de redes.']);
+  assert.equal(shouldNotify(sinLlaves, MORNING), false, 'faltan llaves de Meta: no es una falla');
+  assert.equal(shouldNotify(empty(['Tenant 1 sin licencia SOCIAL activa: no se leen sus mensajes.']), MORNING), false);
+  assert.equal(shouldNotify({ success: false, error: 'No sé de qué tenant es la cuenta conectada: define SOCIAL_INBOX_TENANT_ID.', result: { sinResponder: [], errores: [] } }, MORNING), false);
+  assert.equal(shouldNotify(empty(['instagram: Meta respondió 500']), MORNING), true);
+  assert.equal(shouldNotify(empty(['instagram: Meta respondió 500']), new Date('2026-11-27T21:43:00Z')), false);
+  assert.equal(shouldNotify(empty(['instagram: Meta respondió 500']), MORNING, 9), false, 'la hora de la mañana se puede cambiar');
+  assert.deepEqual(realErrors(['Falta la variable de entorno YOUTUBE_API_KEY.', 'timeout']), ['timeout']);
+  assert.equal(hourBogota(MORNING), 7);
 });
 
 test('errores del CRM quedan registrados sin frenar la escucha', async () => {
